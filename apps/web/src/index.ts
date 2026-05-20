@@ -1,9 +1,8 @@
 import { appShell } from "./layout/shell";
-import { overviewRoute } from "./routes/overview";
-import { ticketsRoute } from "./routes/tickets";
+import { placeholderRouteModules } from "./routes";
 
 export const webAppScaffold = {
   appShell,
-  routes: [overviewRoute, ticketsRoute],
+  routes: placeholderRouteModules,
   stylesEntry: "src/styles/global.css",
 } as const;

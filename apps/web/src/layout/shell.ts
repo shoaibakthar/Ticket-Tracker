@@ -1,5 +1,12 @@
+import { sidebarNavigation } from "../navigation/sidebar";
+import { topbar } from "./topbar";
+import { placeholderRouteModules } from "../routes";
+
 export const appShell = {
-  name: "ObserveID Ticket Tracker",
-  navigationGroups: ["overview", "tickets"],
-  status: "scaffold",
+  appName: "ObserveID Ticket Tracker",
+  phase: "application-shell",
+  status: "placeholder",
+  sidebar: sidebarNavigation,
+  topbar,
+  routeCount: placeholderRouteModules.length,
 } as const;
