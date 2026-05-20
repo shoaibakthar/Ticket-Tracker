@@ -6,6 +6,9 @@ import type { PlaceholderRouteModule, PlaceholderScreenProps } from "../navigati
 function renderShareLinksScreen({ workspaceSlug }: PlaceholderScreenProps): ReactElement {
   return ScreenPlaceholder({
     workspaceSlug,
+    sessionBootstrap: null,
+    workspaceOverview: null,
+    requiredPermissions: shareLinksRoute.requiredPermissions,
     routePath: `/workspaces/${workspaceSlug}/share-links`,
     title: "Share Links",
     description: "A deliberate, high-trust management surface for scoped, read-only sharing.",
@@ -22,6 +25,7 @@ export const shareLinksRoute: PlaceholderRouteModule = {
   summary: "Manage controlled share links with clear read-only and revocation intent.",
   navigationLabel: "Share Links",
   placeholder: true,
+  requiredPermissions: ["shares.view"],
   buildPath: (workspaceSlug) => `/workspaces/${workspaceSlug}/share-links`,
   renderScreen: renderShareLinksScreen,
 };

@@ -6,6 +6,9 @@ import type { PlaceholderRouteModule, PlaceholderScreenProps } from "../navigati
 function renderPagesScreen({ workspaceSlug }: PlaceholderScreenProps): ReactElement {
   return ScreenPlaceholder({
     workspaceSlug,
+    sessionBootstrap: null,
+    workspaceOverview: null,
+    requiredPermissions: pagesRoute.requiredPermissions,
     routePath: `/workspaces/${workspaceSlug}/pages`,
     title: "Pages",
     description: "An MVP-safe entry into workspace documentation, keeping page tree and editor depth deferred.",
@@ -22,6 +25,7 @@ export const pagesRoute: PlaceholderRouteModule = {
   summary: "Enter workspace pages and documentation without implying final editor behavior yet.",
   navigationLabel: "Pages",
   placeholder: true,
+  requiredPermissions: ["pages.view"],
   buildPath: (workspaceSlug) => `/workspaces/${workspaceSlug}/pages`,
   renderScreen: renderPagesScreen,
 };

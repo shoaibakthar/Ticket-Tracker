@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { loadAppRouteData, type LoadedAppRouteData } from "./data/app-loader.ts";
 import { renderNotAuthorizedScreen } from "./routes/not-authorized.ts";
 import { renderNotFoundScreen } from "./routes/not-found.ts";
 import { renderSharedRouteShell } from "./routes/shared.ts";
@@ -18,23 +19,36 @@ export function renderWebAppShell(options: RenderedShellOptions = {}): string {
     createElement(AppShell, {
       workspaceSlug,
       route,
+      sessionBootstrap: null,
+      workspaceOverview: null,
+      ticketList: null,
+      ticketListError: null,
     }),
   );
 }
 
-function renderAppRouteBody(routeState: AppRouteState): string {
+function renderAppRouteBody(routeState: AppRouteState, loadedData?: LoadedAppRouteData): string {
   switch (routeState.kind) {
     case "workspace":
       return renderToStaticMarkup(
         createElement(AppShell, {
           workspaceSlug: routeState.workspaceSlug,
           route: routeState.route,
+          sessionBootstrap: loadedData?.sessionBootstrap ?? null,
+          workspaceOverview: loadedData?.workspaceOverview ?? null,
+          ticketList: loadedData?.ticketList ?? null,
+          ticketListError: loadedData?.ticketListError ?? null,
         }),
       );
     case "shared":
       return renderToStaticMarkup(renderSharedRouteShell(routeState.token));
     case "not-authorized":
-      return renderToStaticMarkup(renderNotAuthorizedScreen());
+      return renderToStaticMarkup(
+        renderNotAuthorizedScreen({
+          attemptedPath: routeState.attemptedPath,
+          missingPermissions: routeState.missingPermissions,
+        }),
+      );
     case "not-found":
       return renderToStaticMarkup(renderNotFoundScreen(routeState.pathname));
   }
@@ -81,9 +95,43 @@ export function renderWebAppDocument(pathname: string): string {
   ].join("\n");
 }
 
+export function renderLoadedWebAppDocument(loadedData: LoadedAppRouteData): string {
+  const documentTitle = escapeHtml(getDocumentTitle(loadedData.routeState));
+  const body = renderAppRouteBody(loadedData.routeState, loadedData);
+
+  return [
+    "<!doctype html>",
+    '<html lang="en">',
+    "  <head>",
+    '    <meta charset="utf-8" />',
+    '    <meta name="viewport" content="width=device-width, initial-scale=1" />',
+    `    <title>${documentTitle}</title>`,
+    '    <link rel="stylesheet" href="/styles/global.css" />',
+    "  </head>",
+    `  <body>${body}</body>`,
+    "</html>",
+  ].join("\n");
+}
+
+export async function renderWebAppDocumentFromApi(
+  pathname: string,
+  options: {
+    readonly apiBaseUrl: string;
+    readonly fetchImpl?: typeof fetch;
+  },
+): Promise<string> {
+  return renderLoadedWebAppDocument(
+    await loadAppRouteData(pathname, {
+      apiBaseUrl: options.apiBaseUrl,
+      fetchImpl: options.fetchImpl ?? fetch,
+    }),
+  );
+}
+
 export const webAppScaffold = {
   activeRouteId: "workspace-overview",
   render: renderWebAppShell,
   renderDocument: renderWebAppDocument,
+  renderDocumentFromApi: renderWebAppDocumentFromApi,
   stylesEntry: "src/styles/global.css",
 } as const;

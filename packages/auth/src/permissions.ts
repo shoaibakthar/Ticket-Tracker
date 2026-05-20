@@ -73,3 +73,7 @@ export const allPermissions = [
 ] as const;
 
 export type Permission = (typeof allPermissions)[number];
+
+export function isKnownPermission(value: string): value is Permission {
+  return allPermissions.includes(value as Permission);
+}

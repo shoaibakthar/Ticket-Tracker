@@ -1,12 +1,12 @@
 import type { Hono } from "hono";
 
-import type { ApiEnv } from "../lib/env";
+import type { ApiAppContext } from "../lib/context";
 
-export function registerHealthRoutes(app: Hono<{ Bindings: ApiEnv }>): void {
+export function registerHealthRoutes(app: Hono<ApiAppContext>): void {
   app.get("/health", (context) => {
     return context.json({
       status: "ok",
-      phase: "scaffold",
+      phase: "auth-foundation",
     });
   });
 }

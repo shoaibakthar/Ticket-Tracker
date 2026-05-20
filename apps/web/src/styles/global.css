@@ -37,6 +37,33 @@ body {
   background: #f8fafc;
 }
 
+.sidebar__workspace-switcher {
+  margin-top: 14px;
+}
+
+.sidebar__workspace-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.sidebar__workspace-item + .sidebar__workspace-item {
+  margin-top: 6px;
+}
+
+.sidebar__workspace-link {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 10px;
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.sidebar__workspace-link:hover,
+.sidebar__workspace-link--current {
+  background: #e2e8f0;
+}
+
 .sidebar__label,
 .sidebar__workspace-note,
 .topbar__eyebrow,
@@ -109,6 +136,7 @@ body {
 .topbar__subtitle,
 .screen-placeholder__description,
 .screen-placeholder__card-body,
+.screen-placeholder__access-note,
 .state-card__body {
   margin: 8px 0 0;
   color: #475569;
@@ -186,6 +214,100 @@ body {
   margin: 16px 0 0;
   color: #0f172a;
   font-weight: 600;
+}
+
+.workspace-overview__header,
+.workspace-overview__footer {
+  margin-bottom: 24px;
+}
+
+.workspace-overview__title {
+  margin: 8px 0 0;
+  font-size: 32px;
+}
+
+.workspace-overview__description,
+.workspace-overview__card-body,
+.workspace-overview__footer {
+  color: #475569;
+  line-height: 1.7;
+}
+
+.workspace-overview__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.workspace-overview__card {
+  border: 1px solid #dbe3ee;
+  border-radius: 18px;
+  background: #ffffff;
+  padding: 20px;
+}
+
+.workspace-overview__card-title {
+  margin: 0 0 10px;
+}
+
+.tickets-screen__header,
+.tickets-screen__footer {
+  margin-bottom: 24px;
+}
+
+.tickets-screen__title {
+  margin: 0;
+  font-size: 30px;
+}
+
+.tickets-screen__subtitle,
+.tickets-screen__footer,
+.tickets-table td {
+  color: #475569;
+  line-height: 1.6;
+}
+
+.tickets-screen__table-wrap {
+  overflow-x: auto;
+  border: 1px solid #dbe3ee;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.tickets-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tickets-table th,
+.tickets-table td {
+  padding: 16px 18px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+}
+
+.tickets-table th {
+  font-size: 13px;
+  color: #334155;
+  background: #f8fafc;
+}
+
+.tickets-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.tickets-table__ticket {
+  min-width: 280px;
+}
+
+.tickets-table__number,
+.tickets-table__title {
+  display: block;
+}
+
+.tickets-table__title {
+  margin-top: 4px;
 }
 
 .global-route-placeholder {

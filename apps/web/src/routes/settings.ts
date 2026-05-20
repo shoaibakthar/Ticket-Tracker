@@ -6,6 +6,9 @@ import type { PlaceholderRouteModule, PlaceholderScreenProps } from "../navigati
 function renderSettingsScreen({ workspaceSlug }: PlaceholderScreenProps): ReactElement {
   return ScreenPlaceholder({
     workspaceSlug,
+    sessionBootstrap: null,
+    workspaceOverview: null,
+    requiredPermissions: settingsRoute.requiredPermissions,
     routePath: `/workspaces/${workspaceSlug}/settings`,
     title: "Settings",
     description: "A grouped administrative shell for workspace configuration, intentionally limited until permission-aware settings are defined.",
@@ -21,6 +24,7 @@ export const settingsRoute: PlaceholderRouteModule = {
   summary: "Provide a stable workspace-level administration entry point.",
   navigationLabel: "Settings",
   placeholder: true,
+  requiredPermissions: ["workspace.settings.view"],
   buildPath: (workspaceSlug) => `/workspaces/${workspaceSlug}/settings`,
   renderScreen: renderSettingsScreen,
 };

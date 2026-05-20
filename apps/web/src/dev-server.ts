@@ -1,7 +1,8 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 
-import { renderWebAppDocument } from "./index.ts";
+import { loadAppRouteData } from "./data/app-loader.ts";
+import { renderLoadedWebAppDocument, renderWebAppDocument } from "./index.ts";
 import { resolveAppRoute } from "./routing/route-state.ts";
 
 const defaultPort = 3000;
@@ -9,9 +10,10 @@ const port = Number.parseInt(process.env.PORT ?? `${defaultPort}`, 10) || defaul
 const host = process.env.HOST ?? "127.0.0.1";
 const defaultWorkspaceSlug = "demo-workspace";
 const stylesheetUrl = new URL("./styles/global.css", import.meta.url);
+const apiBaseUrl = process.env.API_BASE_URL ?? null;
 
-function getStatusCode(pathname: string): number {
-  const routeState = resolveAppRoute(pathname);
+function getStatusCode(pathname: string, resolvedPathname?: string): number {
+  const routeState = resolveAppRoute(resolvedPathname ?? pathname);
 
   switch (routeState.kind) {
     case "workspace":
@@ -48,9 +50,15 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  const html = renderWebAppDocument(requestUrl.pathname);
+  const loadedData = apiBaseUrl
+    ? await loadAppRouteData(requestUrl.pathname, {
+        apiBaseUrl,
+        fetchImpl: fetch,
+      })
+    : null;
+  const html = loadedData ? renderLoadedWebAppDocument(loadedData) : renderWebAppDocument(requestUrl.pathname);
 
-  response.writeHead(getStatusCode(requestUrl.pathname), {
+  response.writeHead(getStatusCode(requestUrl.pathname, loadedData?.routeState.pathname), {
     "content-type": "text/html; charset=utf-8",
   });
   response.end(html);

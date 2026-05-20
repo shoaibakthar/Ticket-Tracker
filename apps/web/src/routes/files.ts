@@ -6,6 +6,9 @@ import type { PlaceholderRouteModule, PlaceholderScreenProps } from "../navigati
 function renderFilesScreen({ workspaceSlug }: PlaceholderScreenProps): ReactElement {
   return ScreenPlaceholder({
     workspaceSlug,
+    sessionBootstrap: null,
+    workspaceOverview: null,
+    requiredPermissions: filesRoute.requiredPermissions,
     routePath: `/workspaces/${workspaceSlug}/files`,
     title: "Files",
     description: "A simple file and attachment surface that stays intentionally lightweight for MVP.",
@@ -22,6 +25,7 @@ export const filesRoute: PlaceholderRouteModule = {
   summary: "List workspace files and attachments with space for permission-aware actions later.",
   navigationLabel: "Files",
   placeholder: true,
+  requiredPermissions: ["attachments.view"],
   buildPath: (workspaceSlug) => `/workspaces/${workspaceSlug}/files`,
   renderScreen: renderFilesScreen,
 };

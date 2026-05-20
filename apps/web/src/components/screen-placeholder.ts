@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import type { Permission } from "../../../../packages/auth/src/permissions";
 
 import { createElement } from "../lib/element.ts";
 import { EmptyStatePlaceholder } from "./states/empty-state.ts";
@@ -13,6 +14,11 @@ interface ScreenPlaceholderProps {
   readonly primaryActionLabel?: string;
   readonly bodyTitle: string;
   readonly bodyDescription: string;
+  readonly requiredPermissions: readonly Permission[];
+  readonly sessionBootstrap: unknown;
+  readonly workspaceOverview: unknown;
+  readonly ticketList?: unknown;
+  readonly ticketListError?: unknown;
 }
 
 export function ScreenPlaceholder({
@@ -23,6 +29,11 @@ export function ScreenPlaceholder({
   primaryActionLabel,
   bodyTitle,
   bodyDescription,
+  requiredPermissions,
+  sessionBootstrap: _sessionBootstrap,
+  workspaceOverview: _workspaceOverview,
+  ticketList: _ticketList,
+  ticketListError: _ticketListError,
 }: ScreenPlaceholderProps): ReactElement {
   const emptyStateProps = primaryActionLabel
     ? {
@@ -45,6 +56,11 @@ export function ScreenPlaceholder({
       createElement("h2", { className: "screen-placeholder__title" }, title),
       createElement("p", { className: "screen-placeholder__description" }, description),
       createElement("code", { className: "screen-placeholder__route" }, routePath),
+      createElement(
+        "p",
+        { className: "screen-placeholder__access-note" },
+        `Required permission placeholder: ${requiredPermissions.join(", ")}`,
+      ),
     ),
     createElement(
       "div",

@@ -1,7 +1,10 @@
 import { z } from "zod";
 
+import type { D1Database } from "./d1";
+
 export const apiRuntimeStages = ["development", "preview", "production"] as const;
-export const sessionDriverValues = ["placeholder"] as const;
+export { sessionDriverValues } from "../../../../packages/auth/src/session";
+import { sessionDriverValues } from "../../../../packages/auth/src/session";
 
 export const apiVariableSchema = z.object({
   APP_ENV: z.enum(apiRuntimeStages),
@@ -11,10 +14,7 @@ export const apiVariableSchema = z.object({
   TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
 });
 
-export interface CloudflareD1BindingPlaceholder {
-  readonly bindingType: "d1";
-  readonly status: "placeholder";
-}
+export type CloudflareD1Binding = D1Database;
 
 export interface CloudflareR2BindingPlaceholder {
   readonly bindingType: "r2";
@@ -22,7 +22,7 @@ export interface CloudflareR2BindingPlaceholder {
 }
 
 export interface ApiPlatformBindings {
-  readonly DB: CloudflareD1BindingPlaceholder;
+  readonly DB: CloudflareD1Binding;
   readonly ATTACHMENTS: CloudflareR2BindingPlaceholder;
 }
 
@@ -54,6 +54,6 @@ export const apiBindingNames = {
 
 export const apiRuntimePlaceholder = {
   platform: "cloudflare-workers",
-  sessionFlow: "auth-phase-pending",
+  sessionFlow: "app-backed-session-bootstrap",
   bindings: apiBindingNames,
 } as const;

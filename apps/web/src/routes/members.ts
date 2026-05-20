@@ -6,6 +6,9 @@ import type { PlaceholderRouteModule, PlaceholderScreenProps } from "../navigati
 function renderMembersScreen({ workspaceSlug }: PlaceholderScreenProps): ReactElement {
   return ScreenPlaceholder({
     workspaceSlug,
+    sessionBootstrap: null,
+    workspaceOverview: null,
+    requiredPermissions: membersRoute.requiredPermissions,
     routePath: `/workspaces/${workspaceSlug}/members`,
     title: "Members",
     description: "A role-and-status-focused access surface that makes membership management easy to understand.",
@@ -22,6 +25,7 @@ export const membersRoute: PlaceholderRouteModule = {
   summary: "Manage workspace access and role clarity without implementing membership actions yet.",
   navigationLabel: "Members",
   placeholder: true,
+  requiredPermissions: ["workspace.members.view"],
   buildPath: (workspaceSlug) => `/workspaces/${workspaceSlug}/members`,
   renderScreen: renderMembersScreen,
 };

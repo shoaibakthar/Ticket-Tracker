@@ -1,5 +1,5 @@
 APP_ENV=development
 APP_BASE_URL=http://localhost:8787
-SESSION_DRIVER=placeholder
+SESSION_DRIVER=hybrid-friendly-placeholder
 TURNSTILE_SITE_KEY=replace-me
 TURNSTILE_SECRET_KEY=replace-me

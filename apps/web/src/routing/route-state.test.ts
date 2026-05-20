@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveAppRoute } from "./route-state.ts";
+import { applyRouteAuthorizationSnapshot, resolveAppRoute } from "./route-state.ts";
 
 describe("app route state", () => {
   it("matches documented workspace-scoped placeholder routes", () => {
@@ -29,12 +29,29 @@ describe("app route state", () => {
       kind: "not-authorized",
       pathname: "/not-authorized",
       access: "public",
+      attemptedPath: null,
+      missingPermissions: [],
     });
 
     expect(resolveAppRoute("/missing/route")).toEqual({
       kind: "not-found",
       pathname: "/missing/route",
       access: "public",
+    });
+  });
+
+  it("turns workspace routes into not-authorized when a future auth snapshot lacks the required permission", () => {
+    expect(
+      applyRouteAuthorizationSnapshot(resolveAppRoute("/workspaces/acme/settings"), {
+        sessionState: "authenticated",
+        grantedPermissions: ["workspace.view"],
+      }),
+    ).toEqual({
+      kind: "not-authorized",
+      pathname: "/not-authorized",
+      access: "public",
+      attemptedPath: "/workspaces/acme/settings",
+      missingPermissions: ["workspace.settings.view"],
     });
   });
 });

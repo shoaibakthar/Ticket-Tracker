@@ -1,4 +1,9 @@
-import type { AppRouteState, PlaceholderRouteId } from "../navigation/types.ts";
+import type {
+  AppRouteState,
+  PlaceholderRouteId,
+  RouteAuthorizationSnapshot,
+  WorkspaceRouteState,
+} from "../navigation/types.ts";
 import { getWorkspacePlaceholderRoute } from "../routes/index.ts";
 
 const workspaceRouteSegmentToId = {
@@ -32,11 +37,13 @@ export function resolveAppRoute(pathname: string): AppRouteState {
   const normalizedPathname = normalizePathname(pathname);
 
   if (normalizedPathname === "/not-authorized") {
-    return {
-      kind: "not-authorized",
-      pathname: "/not-authorized",
-      access: "public",
-    };
+      return {
+        kind: "not-authorized",
+        pathname: "/not-authorized",
+        access: "public",
+        attemptedPath: null,
+        missingPermissions: [],
+      };
   }
 
   const sharedMatch = normalizedPathname.match(/^\/shared\/([^/]+)$/);
@@ -65,6 +72,16 @@ export function resolveAppRoute(pathname: string): AppRouteState {
         route: getWorkspacePlaceholderRoute(routeId),
         access: "protected",
         authState: "pending",
+        routeGuard: {
+          strategy: "authenticated-workspace-membership",
+          fallbackPath: "/not-authorized",
+          requiredPermissions: getWorkspacePlaceholderRoute(routeId).requiredPermissions,
+        },
+        authorization: {
+          sessionState: "pending",
+          permissionState: "pending",
+          missingPermissions: [],
+        },
       };
     }
   }
@@ -74,4 +91,44 @@ export function resolveAppRoute(pathname: string): AppRouteState {
     pathname: normalizedPathname,
     access: "public",
   };
+}
+
+export function applyRouteAuthorizationSnapshot(
+  routeState: AppRouteState,
+  snapshot: RouteAuthorizationSnapshot,
+): AppRouteState {
+  if (routeState.kind !== "workspace") {
+    return routeState;
+  }
+
+  if (snapshot.sessionState !== "authenticated") {
+    return routeState;
+  }
+
+  const missingPermissions = routeState.routeGuard.requiredPermissions.filter(
+    (requiredPermission) => !snapshot.grantedPermissions.includes(requiredPermission),
+  );
+
+  if (missingPermissions.length > 0) {
+    return {
+      kind: "not-authorized",
+      pathname: "/not-authorized",
+      access: "public",
+      attemptedPath: routeState.pathname,
+      missingPermissions,
+    };
+  }
+
+  return {
+    ...routeState,
+    authorization: buildAuthorizedPlaceholder(routeState),
+  };
+}
+
+function buildAuthorizedPlaceholder(routeState: WorkspaceRouteState) {
+  return {
+    sessionState: "authenticated",
+    permissionState: "authorized",
+    missingPermissions: routeState.authorization.missingPermissions,
+  } as const;
 }
