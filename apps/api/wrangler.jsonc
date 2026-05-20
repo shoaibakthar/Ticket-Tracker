@@ -1,0 +1,25 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "observeid-ticket-tracker-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-20",
+  "vars": {
+    "APP_ENV": "development",
+    "APP_BASE_URL": "http://localhost:8787",
+    "SESSION_DRIVER": "placeholder"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "observeid-ticket-tracker-local",
+      "database_id": "placeholder-d1-database-id"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ATTACHMENTS",
+      "bucket_name": "observeid-ticket-tracker-local-attachments",
+      "preview_bucket_name": "observeid-ticket-tracker-preview-attachments"
+    }
+  ]
+}

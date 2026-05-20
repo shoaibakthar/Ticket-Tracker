@@ -1,0 +1,21 @@
+-- ObserveID Ticket Tracker initial schema placeholder
+-- Source of truth: docs/DB_SCHEMA.md
+-- This placeholder reserves the first migration slot for the required v1 tables:
+-- tenants
+-- workspaces
+-- users
+-- workspace_members
+-- invites
+-- sessions
+-- tickets
+-- ticket_updates
+-- ticket_comments
+-- ticket_tags
+-- ticket_tag_links
+-- pages
+-- page_blocks
+-- attachments
+-- share_links
+-- audit_events
+--
+-- Actual D1 SQL statements should be generated once the schema foundation phase is approved.
