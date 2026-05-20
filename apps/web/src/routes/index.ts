@@ -1,12 +1,12 @@
-import { filesRoute } from "./files";
-import { membersRoute } from "./members";
-import { overviewRoute } from "./overview";
-import { pagesRoute } from "./pages";
-import { settingsRoute } from "./settings";
-import { shareLinksRoute } from "./share-links";
-import { ticketsRoute } from "./tickets";
+import { filesRoute } from "./files.ts";
+import { membersRoute } from "./members.ts";
+import { overviewRoute } from "./overview.ts";
+import { pagesRoute } from "./pages.ts";
+import { settingsRoute } from "./settings.ts";
+import { shareLinksRoute } from "./share-links.ts";
+import { ticketsRoute } from "./tickets.ts";
 
-export const placeholderRouteModules = [
+export const workspaceRouteModules = [
   overviewRoute,
   ticketsRoute,
   pagesRoute,
@@ -16,8 +16,10 @@ export const placeholderRouteModules = [
   settingsRoute,
 ] as const;
 
-export function getPlaceholderRoute(routeId: (typeof placeholderRouteModules)[number]["id"]) {
-  const route = placeholderRouteModules.find((candidate) => candidate.id === routeId);
+export const placeholderRouteModules = workspaceRouteModules;
+
+export function getWorkspacePlaceholderRoute(routeId: (typeof workspaceRouteModules)[number]["id"]) {
+  const route = workspaceRouteModules.find((candidate) => candidate.id === routeId);
 
   if (!route) {
     throw new Error(`Unknown placeholder route: ${routeId}`);
@@ -25,3 +27,5 @@ export function getPlaceholderRoute(routeId: (typeof placeholderRouteModules)[nu
 
   return route;
 }
+
+export const getPlaceholderRoute = getWorkspacePlaceholderRoute;

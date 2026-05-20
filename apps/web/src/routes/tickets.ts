@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 
-import { ScreenPlaceholder } from "../components/screen-placeholder";
-import type { PlaceholderRouteModule, PlaceholderScreenProps } from "../navigation/types";
+import { ScreenPlaceholder } from "../components/screen-placeholder.ts";
+import type { PlaceholderRouteModule, PlaceholderScreenProps } from "../navigation/types.ts";
 
 function renderTicketsScreen({ workspaceSlug }: PlaceholderScreenProps): ReactElement {
   return ScreenPlaceholder({

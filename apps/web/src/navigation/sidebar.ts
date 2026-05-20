@@ -1,5 +1,5 @@
-import { placeholderRouteModules } from "../routes";
-import type { PlaceholderRouteId, SidebarNavigationSection } from "./types";
+import { placeholderRouteModules } from "../routes/index.ts";
+import type { PlaceholderRouteId, SidebarNavigationSection } from "./types.ts";
 
 const routeMap = Object.fromEntries(placeholderRouteModules.map((route) => [route.id, route])) as Record<
   (typeof placeholderRouteModules)[number]["id"],

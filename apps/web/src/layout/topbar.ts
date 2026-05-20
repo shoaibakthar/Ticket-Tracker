@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 
-import { createElement } from "../lib/element";
+import { createElement } from "../lib/element.ts";
 
 interface TopbarProps {
   readonly title: string;

@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 
-import { createElement } from "../lib/element";
-import type { SidebarNavigationSection } from "../navigation/types";
+import { createElement } from "../lib/element.ts";
+import type { SidebarNavigationSection } from "../navigation/types.ts";
 
 interface SidebarProps {
   readonly workspaceSlug: string;

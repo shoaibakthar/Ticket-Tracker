@@ -1,10 +1,10 @@
 import type { ReactElement } from "react";
 
-import { createElement } from "../lib/element";
-import { buildSidebarNavigation } from "../navigation/sidebar";
-import type { PlaceholderRouteModule } from "../navigation/types";
-import { Sidebar } from "./sidebar";
-import { Topbar } from "./topbar";
+import { createElement } from "../lib/element.ts";
+import { buildSidebarNavigation } from "../navigation/sidebar.ts";
+import type { PlaceholderRouteModule } from "../navigation/types.ts";
+import { Sidebar } from "./sidebar.ts";
+import { Topbar } from "./topbar.ts";
 
 interface AppShellProps {
   readonly workspaceSlug: string;

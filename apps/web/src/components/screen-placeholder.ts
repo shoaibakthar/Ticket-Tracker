@@ -1,9 +1,9 @@
 import type { ReactElement } from "react";
 
-import { createElement } from "../lib/element";
-import { EmptyStatePlaceholder } from "./states/empty-state";
-import { ErrorStatePlaceholder } from "./states/error-state";
-import { LoadingStatePlaceholder } from "./states/loading-state";
+import { createElement } from "../lib/element.ts";
+import { EmptyStatePlaceholder } from "./states/empty-state.ts";
+import { ErrorStatePlaceholder } from "./states/error-state.ts";
+import { LoadingStatePlaceholder } from "./states/loading-state.ts";
 
 interface ScreenPlaceholderProps {
   readonly workspaceSlug: string;

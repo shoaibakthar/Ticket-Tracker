@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { renderWebAppShell } from "./index";
-import { placeholderRouteModules } from "./routes";
+import { renderWebAppDocument, renderWebAppShell } from "./index.ts";
+import { placeholderRouteModules } from "./routes/index.ts";
 
 describe("web app shell scaffold", () => {
   it("uses workspace-scoped route shapes for the primary navigation areas", () => {
@@ -29,5 +29,11 @@ describe("web app shell scaffold", () => {
     expect(html).toContain("Empty");
     expect(html).toContain("Error");
     expect(html).toContain("Share Links");
+  });
+
+  it("renders document-level placeholders for shared, unauthorized, and missing routes", () => {
+    expect(renderWebAppDocument("/shared/demo-token")).toContain("Shared ticket view placeholder");
+    expect(renderWebAppDocument("/not-authorized")).toContain("Not authorized");
+    expect(renderWebAppDocument("/unknown/path")).toContain("Page not found");
   });
 });
