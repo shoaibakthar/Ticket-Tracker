@@ -15,3 +15,13 @@ export const placeholderRouteModules = [
   shareLinksRoute,
   settingsRoute,
 ] as const;
+
+export function getPlaceholderRoute(routeId: (typeof placeholderRouteModules)[number]["id"]) {
+  const route = placeholderRouteModules.find((candidate) => candidate.id === routeId);
+
+  if (!route) {
+    throw new Error(`Unknown placeholder route: ${routeId}`);
+  }
+
+  return route;
+}
