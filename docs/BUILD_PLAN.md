@@ -1,52 +1,80 @@
 # ObserveID Ticket Tracker — Build Plan
 
 ## 1. Purpose
-Build a secure, modern, workspace-based customer ticket tracker for ObserveID.
+Build a secure, modern, workspace-based customer issue tracker and communication portal for ObserveID.
 
 Primary goals:
-- Customer workspace per client
-- Named members with strict access control
-- Daily ticket updates
-- Secure shareable URLs where policy allows
-- Rich pages/spaces for notes and status communication
-- Modern, user-friendly UX
-- Strong Cloudflare-native infrastructure
-- Small-user reliability target (up to ~25 active users) with enterprise-style engineering discipline
+- replace the current Notion-based master/customer issue tracking workflow
+- maintain one master issue record with many customer-facing views
+- reduce copy/paste across Zoho Desk, Jira, internal notes, and customer updates
+- support daily internal operations with strong visibility and low friction
+- provide secure customer-safe workspaces and shareable links where policy allows
+- create a strong foundation for phased AI assistance and automation later
+- keep infrastructure Cloudflare-native and operationally simple
+- support a small-user reliability target (up to ~25 active users) with enterprise-style engineering discipline
 
-This document is the source of truth for human developers, CLI workflows, and coding agents.
+This document is the source of truth for human developers, CLI workflows, and coding agents for how the product should be built.
 
 ---
 
 ## 2. Product Definition
 This is not just a ticket list.
-This product is a multi-tenant customer operations portal with:
-- Workspaces
-- Tickets
-- Rich-text pages
-- Table/database views
-- Comments and updates
-- Attachments
-- Secure member access
-- Controlled share links
-- Audit logging
+This product is a customer issue operations platform with:
+- workspaces
+- master issues
+- affected-customer visibility
+- internal notes vs customer-visible updates
+- rich-text pages
+- table/database views
+- attachments
+- secure member access
+- controlled share links
+- audit logging
+- future AI-assisted summarization and update drafting
 
 ### Core product objects
 - Tenant
 - Workspace
 - Member
 - Role
-- Ticket
+- MasterIssue
+- AffectedCustomerLink
+- SupportTicketReference
+- EngineeringLink
 - TicketUpdate
+- InternalNote
 - Comment
 - Page
 - Block
 - Attachment
 - ShareLink
+- MeetingTranscript
+- AIDraftSuggestion
 - AuditEvent
 
 ---
 
-## 3. Constraints and Principles
+## 3. Product Problem and Operating Model
+ObserveID currently maintains customer issue communication through manual Notion pages and linked customer pages.
+This creates duplication, lag, and poor visibility across systems.
+
+The product should solve these problems:
+- incoming support issues arrive in one system while engineering progress lives in another
+- internal teams have to manually collect and restate updates
+- one master issue often affects multiple customers
+- customer-safe communication must remain separate from internal notes
+- teams need to know current standing quickly without reading long documents
+
+The target operating model is:
+1. intake signal arrives from Zoho Desk, manual entry, or meeting notes
+2. issue is linked to or created as a master issue
+3. internal operators maintain a single source of truth
+4. customer-facing views derive safe updates from that master issue
+5. later, AI assists with summarization, draft generation, and issue linking
+
+---
+
+## 4. Constraints and Principles
 
 ### Constraints
 - Max expected usage: ~25 users
@@ -56,25 +84,28 @@ This product is a multi-tenant customer operations portal with:
 - Must support role-based permissions
 - Must avoid unnecessary infrastructure complexity
 - Must use official Cloudflare platform components where possible
+- Must not over-automate before manual workflows are proven
 
 ### Engineering principles
-- Simplicity over cleverness
-- Server-side authorization for every protected resource
-- Tenant isolation by design
-- Explicit schemas and strong typing
-- Minimal dependency surface
-- Every sensitive action auditable
-- Reversible access control actions where possible
+- simplicity over cleverness
+- server-side authorization for every protected resource
+- tenant isolation by design
+- explicit schemas and strong typing
+- minimal dependency surface
+- every sensitive action auditable
+- reversible access control actions where possible
 - UX clarity over visual gimmicks
+- one master issue model over duplicated customer records
+- AI must support operator review, not bypass it
 
 ---
 
-## 4. Recommended Stack
+## 5. Recommended Stack
 
 ### Primary development environment
 - VS Code
-- Local CLI workflow
-- Coding agent only for approved implementation tasks
+- local CLI workflow
+- coding agent only for approved implementation tasks
 
 ### Frontend
 - React
@@ -88,7 +119,7 @@ This product is a multi-tenant customer operations portal with:
 ### Backend
 - Cloudflare Workers
 - TypeScript
-- Hono (preferred lightweight routing layer)
+- Hono
 - Zod for validation
 - Drizzle ORM
 - D1 for relational data
@@ -101,17 +132,17 @@ This product is a multi-tenant customer operations portal with:
 - R2: attachments
 - Turnstile: abuse protection
 - Access: internal/admin protection
-- Durable Objects: optional later for realtime collaboration
+- Durable Objects: optional later if realtime or session coordination is ever justified
 
 ### Testing
 - Vitest
 - Playwright
-- Type checking in CI
-- Linting in CI
+- type checking in CI
+- linting in CI
 
 ---
 
-## 5. Why Not Xcode
+## 6. Why Not Xcode
 Xcode is not the primary environment for this product.
 This product is a secure web platform, not a native Apple-first app.
 Use VS Code as the primary development environment.
@@ -119,42 +150,44 @@ If a native mobile app is needed later, it can be built after the web platform i
 
 ---
 
-## 6. Architecture Overview
+## 7. Architecture Overview
 
 ### High-level architecture
-1. React frontend for admin and customer UI
+1. React frontend for internal and customer UI
 2. Cloudflare Worker API for business logic
 3. D1 database for structured application data
 4. R2 bucket for file attachments
 5. Cloudflare Access for internal admin protection
-6. App-level auth and RBAC for customer users
-7. Turnstile on sign-in/invite/share entry points
+6. app-level auth and RBAC for customer users
+7. Turnstile on sign-in/invite/share entry points where appropriate
+8. AI integration layer later for transcript and update assistance
 
 ### Deployment model
-- Single app with multi-tenant data model
-- Shared runtime, isolated data via tenant/workspace scoping
-- Separate environments: local, preview/staging, production
+- single app with multi-tenant data model
+- shared runtime, isolated data via tenant/workspace scoping
+- separate environments: local, preview/staging, production
 
 ### Multi-tenancy model
 - ObserveID operates the platform
-- Each customer is a tenant
-- Each tenant can have one or more workspaces
-- Members belong to a workspace with explicit roles
+- each customer is a tenant
+- each tenant can have one or more workspaces
+- members belong to a workspace with explicit roles
+- master issues can relate to one or more customers/workspaces depending on final schema design
 
 ---
 
-## 7. Identity, IAM, and Security Model
+## 8. Identity, IAM, and Security Model
 
 ### Authentication
 #### Internal staff
-- Protected by Cloudflare Access
-- Prefer company identity provider integration
-- Enforce MFA through identity provider where possible
+- protected by Cloudflare Access
+- prefer company identity provider integration
+- enforce MFA through identity provider where possible
 
 #### Customer users
-- App-level authentication
-- Support invite-based onboarding
-- Support passwordless or email-based verification initially
+- app-level authentication
+- support invite-based onboarding
+- support simple secure sign-in model in MVP
 - MFA-ready design for future enhancement
 
 ### Authorization
@@ -182,6 +215,7 @@ Use RBAC with explicit permission checks.
 - tickets.assign
 - tickets.comment
 - tickets.view_internal_notes
+- tickets.publish_customer_update
 - pages.create
 - pages.edit
 - pages.share
@@ -189,20 +223,21 @@ Use RBAC with explicit permission checks.
 - audit.view
 
 ### Security rules
-- All authorization checks must happen server-side
-- No cross-tenant data leakage
-- Internal notes must never be visible externally unless policy explicitly allows it
-- All share links must be scoped and revocable
-- Sessions must be short-lived and securely stored
-- Secrets must only exist in Cloudflare-managed environment configuration
+- all authorization checks must happen server-side
+- no cross-tenant data leakage
+- internal notes must never be visible externally unless policy explicitly allows it
+- all share links must be scoped and revocable
+- sessions must be short-lived and securely stored
+- secrets must only exist in Cloudflare-managed environment configuration
+- AI outputs must never bypass visibility controls or publish automatically without review
 
 ### Share link controls
-- Scope to page, report, ticket, or workspace view
-- Expiration supported
-- Revocation supported
-- Optional password protection
-- Access logging required
-- Read-only mode by default
+- scope to page, report, issue, or workspace-safe view
+- expiration supported
+- revocation supported
+- optional password protection later if needed
+- access logging required
+- read-only mode by default
 
 ### Audit events
 Log at minimum:
@@ -211,212 +246,178 @@ Log at minimum:
 - invite created
 - invite accepted
 - role changed
-- ticket created
-- ticket updated
+- issue created
+- issue updated
 - internal note created
 - customer-visible update created
 - attachment uploaded
 - share link created
 - share link revoked
 - sensitive setting changed
+- AI draft generated where security/audit value exists
 
 ---
 
-## 8. Data Model
+## 9. Data Model Direction
 
-### Core tables
+### Core tables / resources
 - tenants
 - workspaces
 - workspace_members
 - roles
 - permissions
 - role_permissions
-- tickets
-- ticket_updates
-- ticket_comments
+- users
+- sessions
+- master_issues
+- issue_customer_links
+- support_ticket_references
+- engineering_links
+- issue_updates
+- internal_notes
+- issue_comments
 - pages
 - page_blocks
 - attachments
 - share_links
+- meeting_transcripts
+- ai_draft_suggestions
 - audit_events
 - invites
-- sessions
 
-### Suggested ticket fields
+### Suggested master issue fields
 - id
-- workspace_id
-- ticket_number
+- workspace_id or owning workspace reference as designed
+- issue_number
 - title
+- normalized_summary
 - description
 - status
 - priority
 - severity
 - category
 - assignee_member_id
-- reporter_name
 - due_date
-- sla_target_at
+- current_standing
+- next_expected_update_at
 - created_at
 - updated_at
-- visibility
 - archived_at
 
-### Suggested ticket update fields
+### Suggested customer link fields
 - id
-- ticket_id
+- issue_id
+- workspace_id or customer reference
+- impact_level
+- customer_visible_status_override optional
+- last_customer_update_at
+- created_at
+
+### Suggested issue update fields
+- id
+- issue_id
 - author_member_id
 - visibility (internal/customer)
 - message
 - created_at
 
-### Suggested page fields
+### Suggested engineering link fields
 - id
-- workspace_id
-- parent_page_id
-- title
-- slug
-- icon
-- cover_image
-- created_by
-- created_at
-- updated_at
-- is_archived
-
-### Suggested share link fields
-- id
-- workspace_id
-- resource_type
-- resource_id
-- token_hash
-- permission_scope
-- expires_at
-- revoked_at
-- created_by
-- created_at
+- issue_id
+- provider
+- external_key
+- external_url
+- status_snapshot optional
+- synced_at optional
 
 ---
 
-## 9. UX and Product Surface
+## 10. UX and Product Surface
 
-### Primary navigation
-#### Admin/internal
-- Dashboard
-- Workspaces
-- Tickets
-- Pages
-- Files
-- Activity
-- Members
-- Settings
-- Audit Logs
-
-#### Customer
+### Primary internal navigation
 - Overview
 - Tickets
-- Updates
 - Pages
 - Files
-- Team
-- Profile
+- Members
+- Share Links
+- Settings
 
-### Key screens
-1. Sign in
-2. Workspace selector
-3. Workspace overview dashboard
-4. Ticket list view
-5. Ticket detail page/drawer
-6. Page editor/viewer
-7. Members management
-8. Share links management
-9. Settings
-10. Audit log viewer
+### Key product surfaces
+1. workspace overview
+2. master issue list
+3. master issue detail
+4. customer-safe issue communication view
+5. pages/spaces
+6. member management
+7. share-link management
+8. settings
+9. later operational dashboard
 
 ### UX goals
-- Show latest status clearly
-- Make daily ticket updating very fast
-- Keep customer UI simple and calm
-- Distinguish internal-only vs customer-visible content clearly
-- Keep navigation consistent
-- Reduce clicks for common workflows
-- Support keyboard-first internal usage over time
+- show current standing clearly
+- make daily updating very fast
+- keep customer UI simple and calm
+- distinguish internal-only vs customer-visible content clearly
+- keep navigation consistent
+- reduce clicks for common workflows
+- support a future operator cockpit for “what needs attention now”
 
 ### Design references
 Borrow qualities from:
-- Linear: clarity and task flow
-- Notion: page structure and content composition
+- Linear: clarity and issue flow
+- Notion: page structure and context layering
 - Stripe/Vercel: spacing and polish
-- Palantir-style enterprise seriousness: trust, density, operational clarity
+- serious enterprise tools: trust, density, operational clarity
 
-Do not blindly copy visual design. Focus on clarity, speed, and trust.
+Do not copy visual design directly. Focus on clarity, speed, and trust.
 
 ---
 
-## 10. Pages and “Notion-like” Spaces
+## 11. Pages and “Notion-like” Spaces
 
 ### Scope for v1
 Implement a practical subset of Notion-like functionality.
 
 ### v1 page capabilities
-- Nested pages in workspace sidebar
-- Rich text title and body
-- Basic blocks
-- Slash commands
-- Embedded ticket views
-- Comments on pages (optional in v1.5)
-
-### Block types
-- Heading
-- Paragraph
-- Bullet list
-- Checklist
-- Divider
-- Callout
-- Quote
-- Simple table
-- Ticket database view
-- Attachment block
-- Status summary block
-
-### Slash commands
-- /text
-- /h1
-- /h2
-- /todo
-- /divider
-- /callout
-- /table
-- /ticket-view
-- /files
-- /summary
+- nested pages in workspace sidebar
+- rich text title and body
+- basic blocks
+- slash commands baseline later
+- embedded issue views
+- customer/account context pages
 
 ### Important scope note
 Do not attempt to build a full Notion clone in v1.
-Build pages + blocks + linked ticket views only.
+Build pages + blocks + linked issue views only.
 
 ---
 
-## 11. Ticket System Requirements
+## 12. Master Issue System Requirements
 
 ### Required capabilities
-- Create ticket
-- Edit ticket
-- Assign ticket
-- Add due date
-- Add internal note
-- Add customer-visible update
-- Attach files
-- Comment on ticket
-- Filter and sort tickets
-- Save ticket views
-- Audit ticket history
+- create issue
+- edit issue
+- assign issue
+- add due date
+- add internal note
+- add customer-visible update
+- attach files
+- comment on issue
+- filter and sort issues
+- audit issue history
+- link one issue to multiple affected customers where applicable
 
 ### Required statuses
 - New
-- Open
+- Investigating
+- Identified
 - InProgress
 - WaitingOnObserveID
 - WaitingOnCustomer
+- WaitingOnVendor
 - Blocked
+- Monitoring
 - Resolved
 - Closed
 
@@ -426,72 +427,101 @@ Build pages + blocks + linked ticket views only.
 - High
 - Urgent
 
-### Required filters
-- status
-- priority
-- assignee
-- due date
-- updated date
-- created date
-- tag/category
+### Required current-standing outputs
+- concise standing label
+- time since last update
+- next expected update when available
+- clear distinction between internal and customer-safe messaging
 
 ### Views
-- Table view (required)
-- Board view (optional phase 2)
-- Calendar view (optional phase 2)
+- table view (required)
+- board view (deferred)
+- calendar view (deferred)
 
 ---
 
-## 12. File and Attachment Rules
-- Store files in R2
-- Store metadata in D1
-- Restrict allowed file types initially
-- Enforce size limits
-- Virus scanning strategy should be documented if attachments become common
-- Generate signed access patterns where needed
-- Never expose raw storage structure directly
+## 13. Customer Communication Layer Requirements
+The product must support one master issue being reflected into multiple customer-facing views safely.
+
+### Required capabilities
+- customer-safe issue visibility
+- affected-customer linking
+- customer-safe updates
+- clear “current standing” summary
+- last updated visibility
+- shareable read-only views where approved
+
+### Explicit safety rule
+Internal notes and customer-visible updates must remain separate in the data model, API, and UI.
 
 ---
 
-## 13. Reliability and Quality Requirements
+## 14. AI and Automation Direction
+AI is not core MVP functionality, but it is a planned product advantage.
+
+### Early AI use cases
+- transcript to internal summary draft
+- transcript to customer update draft
+- issue-linking suggestion for repeated reports
+- stale issue detection and update nudges
+- customer-safe rewrite suggestions from internal context
+
+### Guardrails
+- AI outputs are suggestions, not automatic truth
+- humans review before publishing
+- AI must not weaken permission boundaries
+- begin with narrow, high-value operator workflows
+
+### MCP / tool integration direction
+Possible future tool integrations include:
+- Zoho Desk reader
+- Jira reader
+- transcript ingestion tool
+- update drafting tool
+- issue search/linking tool
+
+Keep this phased and practical.
+
+---
+
+## 15. Reliability and Quality Requirements
 
 ### Non-functional targets
-- Fast initial page load for dashboard and ticket list
-- Predictable API latency for normal operations
-- Safe rollback path for releases
-- Full auditability of sensitive mutations
-- Stable behavior under expected load (25 users)
+- fast initial page load for overview and issue list
+- predictable API latency for normal operations
+- safe rollback path for releases
+- full auditability of sensitive mutations
+- stable behavior under expected load (25 users)
 
 ### Testing requirements
 #### Unit tests
 - permission checks
 - domain logic
 - validation logic
-- ticket status transitions
+- issue status transitions
+- visibility separation rules
 
 #### Integration tests
 - auth/session flows
 - workspace membership enforcement
-- ticket CRUD
+- issue CRUD
 - page CRUD
-- share link validation
+- share-link validation
 - audit log creation
 
 #### End-to-end tests
 - admin sign-in
 - create workspace
 - invite member
-- create ticket
-- add update
-- customer views ticket
+- create issue
+- add internal note
+- add customer update
+- customer views issue
 - share link works/revokes correctly
-
-### Regression requirements
-- Any bug fixed must get a regression test where practical
 
 ---
 
-## 14. Release, Approval, and Change Control
+## 16. Release, Approval, and Change Control
 
 ### Require explicit approval before
 - adding a new dependency
@@ -501,6 +531,7 @@ Build pages + blocks + linked ticket views only.
 - destructive schema changes
 - enabling public share access in production
 - deployment to production
+- introducing external-system sync that materially changes core flow
 
 ### No approval required for
 - tests
@@ -521,29 +552,29 @@ Every production deployment must have a rollback plan.
 
 ---
 
-## 15. Coding Standards
-- Strict TypeScript enabled
-- No unchecked any types
-- All env vars validated at startup
+## 17. Coding Standards
+- strict TypeScript enabled
+- no unchecked any types
+- all env vars validated at startup
 - Zod schemas for request/response boundaries where appropriate
-- Shared domain types in common package/module
-- Small modules with explicit responsibilities
-- Prefer composition over inheritance
-- Prefer deterministic functions for business logic
-- All protected routes require explicit auth middleware and permission checks
+- shared domain types in common package/module
+- small modules with explicit responsibilities
+- prefer composition over inheritance
+- prefer deterministic functions for business logic
+- all protected routes require explicit auth middleware and permission checks
 
 ---
 
-## 16. Dependency Policy
+## 18. Dependency Policy
 Use the minimum number of dependencies required.
 
 ### Preferred dependency categories
-- Framework/runtime-critical
-- Validation
+- framework/runtime-critical
+- validation
 - UI primitives
-- Testing
-- Editor
-- Data table
+- testing
+- editor
+- data table
 
 ### Avoid
 - experimental auth packages without strong maintenance
@@ -553,7 +584,7 @@ Use the minimum number of dependencies required.
 
 ---
 
-## 17. Local Development Workflow
+## 19. Local Development Workflow
 
 ### Expected tools
 - Node.js LTS
@@ -563,7 +594,7 @@ Use the minimum number of dependencies required.
 
 ### Typical commands
 - install dependencies
-- start frontend dev server
+- start frontend dev server or preview server
 - start worker dev server
 - run typecheck
 - run lint
@@ -579,7 +610,7 @@ Use the minimum number of dependencies required.
 
 ---
 
-## 18. Suggested Monorepo Layout
+## 20. Suggested Monorepo Layout
 
 ```text
 apps/
@@ -593,20 +624,20 @@ packages/
   config/
 docs/
   BUILD_PLAN.md
-  architecture/
-  security/
+  PRODUCT_STRATEGY.md
+  AI_AUTOMATION_PLAN.md
 ```
 
 If implementation starts simpler, a reduced structure is acceptable, but keep boundaries clear.
 
 ---
 
-## 19. Phased Delivery Plan
+## 21. Phased Delivery Plan
 
 ### Phase 0 — Architecture Lock
 - finalize stack
-- finalize IAM
-- finalize data model
+- finalize IAM assumptions
+- finalize data model direction
 - finalize navigation
 - finalize dependency list
 - finalize design principles
@@ -618,41 +649,64 @@ If implementation starts simpler, a reduced structure is acceptable, but keep bo
 - Cloudflare config
 - env validation
 - base UI shell
+- routing and local preview
 - logging scaffolding
 
 ### Phase 2 — Auth + Workspaces
 - internal access model
 - customer auth
-- workspace creation
+- workspace creation/listing
 - member invites
 - role assignment
 - permission middleware
 - audit logs baseline
 
-### Phase 3 — Tickets
-- ticket schema
-- ticket CRUD
-- updates
-- comments
-- assignees
-- due dates
-- attachments
-- internal vs external visibility
+### Phase 3 — Master Issues
+- issue schema
+- issue CRUD
+- internal notes
+- customer updates
+- attachments baseline
+- affected-customer linking
+- current standing fields
 
-### Phase 4 — Pages + Views
+### Phase 4 — Customer Visibility
+- customer-safe issue views
+- workspace overview improvement
+- customer summary surfaces
+- share-safe visibility structure
+
+### Phase 5 — Pages + Views
 - page tree
 - TipTap editor baseline
-- slash commands
-- embedded ticket views
-- sidebar navigation
+- slash commands baseline
+- embedded issue views
+- sidebar integration
 
-### Phase 5 — Sharing
+### Phase 6 — Sharing
 - share links
 - expiry/revoke
 - access logging
-- read-only/report views
+- read-only external views
 
-### Phase 6 — Hardening
+### Phase 7 — Operational Visibility
+- dashboard widgets
+- stale issue views
+- missing-update visibility
+- operator cockpit baseline
+
+### Phase 8 — AI Assist
+- transcript ingestion
+- summary drafts
+- customer update drafts
+- issue-linking suggestions
+
+### Phase 9 — Integrations
+- Zoho Desk reference/linking
+- Jira reference/linking
+- sync strategy baseline
+
+### Phase 10 — Hardening
 - full testing pass
 - accessibility pass
 - performance pass
@@ -663,7 +717,7 @@ If implementation starts simpler, a reduced structure is acceptable, but keep bo
 
 ---
 
-## 20. Definition of Done
+## 22. Definition of Done
 A feature is not done until:
 - business requirements are implemented
 - permission checks are enforced server-side
@@ -676,34 +730,34 @@ A feature is not done until:
 
 ---
 
-## 21. Immediate Next Implementation Tasks
-1. Confirm monorepo vs single-app layout
-2. Initialize Cloudflare-based app structure
-3. Define D1 schema and migrations
-4. Define auth/session approach
-5. Define permission matrix
-6. Build app shell and routing
-7. Build workspace + membership flows
-8. Build ticket CRUD and updates
-9. Build page editor baseline
-10. Add tests before production deployment
+## 23. Immediate Next Implementation Tasks
+1. finish auth/session baseline
+2. finish permission and membership enforcement
+3. connect web route-state to auth-aware behavior
+4. build workspace overview with real data shape
+5. build master issue list and detail flows
+6. implement internal note vs customer update flows
+7. build customer-safe issue visibility layer
+8. add attachments baseline
+9. add share-link baseline
+10. add transcript/AI planning after manual issue workflows are stable
 
 ---
 
-## 22. Agent Instructions
+## 24. Agent Instructions
 If a coding agent reads this file, it must follow these rules:
-- Do not add dependencies without approval
-- Do not change IAM model without approval
-- Do not assume public access is allowed
-- Keep implementation simple and explicit
-- Prefer official Cloudflare platform features
-- Use strict typing and validation
-- Build foundation first, then features, then hardening
-- Ask for approval before production-impacting changes
+- do not add dependencies without approval
+- do not change IAM model without approval
+- do not assume public access is allowed
+- keep implementation simple and explicit
+- prefer official Cloudflare platform features
+- use strict typing and validation
+- build foundation first, then workflows, then visibility, then automation
+- ask for approval before production-impacting changes
 
 ---
 
-## 23. Final Recommendation
+## 25. Final Recommendation
 Build this as a secure Cloudflare-native web application in VS Code using TypeScript end-to-end.
 Use chat for planning, agent for approved implementation, and CLI for local development and deployment.
 Do not use Xcode as the primary development environment for this product.
