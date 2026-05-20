@@ -38,7 +38,7 @@ export const attachmentPermissions = [
   "attachments.delete",
 ] as const;
 
-export const sharePermissions = [
+export const shareLinkPermissions = [
   "shares.create",
   "shares.view",
   "shares.revoke",
@@ -46,7 +46,7 @@ export const sharePermissions = [
 
 export const auditPermissions = ["audit.view"] as const;
 
-export const tenantPermissions = [
+export const tenantAdminPermissions = [
   "tenant.view",
   "tenant.manage",
   "support.cross_workspace_access",
@@ -57,9 +57,9 @@ export const permissionCatalog = {
   ticket: ticketPermissions,
   page: pagePermissions,
   attachment: attachmentPermissions,
-  share: sharePermissions,
+  shareLink: shareLinkPermissions,
   audit: auditPermissions,
-  tenant: tenantPermissions,
+  tenantAdmin: tenantAdminPermissions,
 } as const;
 
 export const allPermissions = [
@@ -67,9 +67,9 @@ export const allPermissions = [
   ...ticketPermissions,
   ...pagePermissions,
   ...attachmentPermissions,
-  ...sharePermissions,
+  ...shareLinkPermissions,
   ...auditPermissions,
-  ...tenantPermissions,
+  ...tenantAdminPermissions,
 ] as const;
 
 export type Permission = (typeof allPermissions)[number];

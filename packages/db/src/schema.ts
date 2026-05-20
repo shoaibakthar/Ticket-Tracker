@@ -1,9 +1,18 @@
 import { sql } from "drizzle-orm";
-import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+  type AnySQLiteColumn,
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 export const tenantStatusValues = ["active", "suspended", "archived"] as const;
 export const userTypeValues = ["internal", "customer"] as const;
-export const recordStatusValues = ["active", "archived"] as const;
+export const userStatusValues = ["active"] as const;
+export const memberStatusValues = ["active"] as const;
 export const workspaceRoleValues = [
   "WorkspaceOwner",
   "WorkspaceAdmin",
@@ -86,7 +95,7 @@ export const users = sqliteTable("users", {
   email: text("email").notNull().unique(),
   fullName: text("full_name"),
   userType: text("user_type", { enum: userTypeValues }).notNull(),
-  status: text("status", { enum: recordStatusValues }).notNull().default("active"),
+  status: text("status", { enum: userStatusValues }).notNull().default("active"),
   emailVerifiedAt: text("email_verified_at"),
   lastLoginAt: text("last_login_at"),
   createdAt: text("created_at").notNull(),
@@ -105,7 +114,7 @@ export const workspaceMembers = sqliteTable(
       .notNull()
       .references(() => users.id),
     role: text("role", { enum: workspaceRoleValues }).notNull(),
-    memberStatus: text("member_status", { enum: recordStatusValues }).notNull().default("active"),
+    memberStatus: text("member_status", { enum: memberStatusValues }).notNull().default("active"),
     invitedByUserId: text("invited_by_user_id").references(() => users.id),
     joinedAt: text("joined_at"),
     createdAt: text("created_at").notNull(),
@@ -211,7 +220,7 @@ export const ticketComments = sqliteTable(
     authorUserId: text("author_user_id")
       .notNull()
       .references(() => users.id),
-    parentCommentId: text("parent_comment_id"),
+    parentCommentId: text("parent_comment_id").references((): AnySQLiteColumn => ticketComments.id),
     visibility: text("visibility", { enum: updateVisibilityValues }).notNull().default("customer"),
     bodyJson: text("body_json").notNull(),
     createdAt: text("created_at").notNull(),
@@ -256,7 +265,7 @@ export const pages = sqliteTable(
     workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id),
-    parentPageId: text("parent_page_id"),
+    parentPageId: text("parent_page_id").references((): AnySQLiteColumn => pages.id),
     title: text("title").notNull(),
     slug: text("slug").notNull(),
     icon: text("icon"),
@@ -391,10 +400,30 @@ export const initialSchemaAssumptions = {
   savedViewsIncludedInV1: false,
 } as const;
 
+export const schemaColumnNames = {
+  tenants: ["id", "name", "slug", "status", "created_at", "updated_at", "archived_at"],
+  workspaces: ["id", "tenant_id", "name", "slug", "description", "is_default", "created_at", "updated_at", "archived_at"],
+  users: ["id", "email", "full_name", "user_type", "status", "email_verified_at", "last_login_at", "created_at", "updated_at", "archived_at"],
+  workspace_members: ["id", "workspace_id", "user_id", "role", "member_status", "invited_by_user_id", "joined_at", "created_at", "updated_at", "archived_at"],
+  invites: ["id", "workspace_id", "email", "role", "token_hash", "invited_by_user_id", "expires_at", "accepted_at", "revoked_at", "created_at"],
+  sessions: ["id", "user_id", "session_token_hash", "created_at", "expires_at", "revoked_at", "last_seen_at", "ip_address", "user_agent"],
+  tickets: ["id", "workspace_id", "ticket_number", "title", "description", "status", "priority", "severity", "category", "visibility", "assignee_member_id", "reporter_name", "due_date", "sla_target_at", "created_by_user_id", "created_at", "updated_at", "archived_at"],
+  ticket_updates: ["id", "ticket_id", "author_user_id", "visibility", "message_json", "created_at", "updated_at", "archived_at"],
+  ticket_comments: ["id", "ticket_id", "author_user_id", "parent_comment_id", "visibility", "body_json", "created_at", "updated_at", "archived_at"],
+  ticket_tags: ["id", "workspace_id", "name", "color", "created_at"],
+  ticket_tag_links: ["ticket_id", "tag_id", "created_at"],
+  pages: ["id", "workspace_id", "parent_page_id", "title", "slug", "icon", "cover_image_key", "visibility", "created_by_user_id", "created_at", "updated_at", "archived_at"],
+  page_blocks: ["id", "page_id", "block_type", "position", "content_json", "created_at", "updated_at", "archived_at"],
+  attachments: ["id", "workspace_id", "linked_resource_type", "linked_resource_id", "uploaded_by_user_id", "r2_object_key", "original_filename", "content_type", "size_bytes", "visibility", "created_at", "archived_at"],
+  share_links: ["id", "workspace_id", "resource_type", "resource_id", "permission_scope", "token_hash", "expires_at", "revoked_at", "created_by_user_id", "created_at", "last_accessed_at"],
+  audit_events: ["id", "actor_user_id", "actor_type", "workspace_id", "resource_type", "resource_id", "action", "metadata_json", "ip_address", "user_agent", "created_at"],
+} as const;
+
 export const schemaPlaceholder = {
   migrationDirectory: "packages/db/migrations",
   probeQuery: sql`select 1`,
   requiredTableNames,
+  schemaColumnNames,
   assumptions: initialSchemaAssumptions,
   status: "foundation-placeholder",
 } as const;
