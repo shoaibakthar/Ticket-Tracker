@@ -6,6 +6,7 @@ declare module "node:http" {
   export interface IncomingMessage {
     readonly method?: string;
     readonly url?: string;
+    readonly headers: Record<string, string | undefined>;
   }
 
   export interface ServerResponse {
@@ -24,4 +25,8 @@ declare module "node:http" {
 
 declare module "node:fs/promises" {
   export function readFile(path: string | URL, encoding: "utf8"): Promise<string>;
+}
+
+declare module "node:stream/consumers" {
+  export function text(stream: unknown): Promise<string>;
 }

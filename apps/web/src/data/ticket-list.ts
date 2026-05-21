@@ -11,11 +11,11 @@ export function readTicketListResponse(value: unknown): TicketListData {
       slug: expectString(workspace.slug),
       name: expectString(workspace.name),
     },
-    items: expectArray(data.items).map(readTicketListItem),
+    items: expectArray(data.items).map((item) => readTicketListItem(item, expectString(workspace.slug))),
   };
 }
 
-function readTicketListItem(value: unknown): TicketListItem {
+function readTicketListItem(value: unknown, workspaceSlug: string): TicketListItem {
   const record = expectRecord(value);
 
   return {
@@ -24,6 +24,7 @@ function readTicketListItem(value: unknown): TicketListItem {
     title: expectString(record.title),
     status: expectString(record.status),
     priority: expectString(record.priority),
+    href: `/workspaces/${workspaceSlug}/tickets/${encodeURIComponent(expectString(record.id))}`,
     updatedAt: expectString(record.updatedAt),
     assignee: record.assignee === null ? null : readTicketAssignee(record.assignee),
   };

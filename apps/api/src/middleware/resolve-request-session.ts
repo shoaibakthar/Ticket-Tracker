@@ -7,7 +7,11 @@ import {
   isKnownPlatformRole,
 } from "../../../../packages/auth/src/index";
 import type { ApiAppContext } from "../lib/context";
-import { findSessionLookupRecord } from "../lib/session-store";
+import {
+  findLocalDevelopmentSessionLookupRecord,
+  shouldUseLocalDevelopmentFallback,
+} from "../lib/local-development";
+import { findSessionLookupRecord, type SessionLookupRecord } from "../lib/session-store";
 import { hashSessionToken, readSessionToken } from "../lib/session-token";
 
 export const resolveRequestSessionContext: MiddlewareHandler<ApiAppContext> = async (
@@ -26,11 +30,21 @@ export const resolveRequestSessionContext: MiddlewareHandler<ApiAppContext> = as
     return;
   }
 
-  const sessionLookupRecord = await findSessionLookupRecord(
-    context.env.DB,
-    await hashSessionToken(sessionToken.token),
-    new Date().toISOString(),
-  );
+  let sessionLookupRecord: SessionLookupRecord | null;
+
+  try {
+    sessionLookupRecord = await findSessionLookupRecord(
+      context.env.DB,
+      await hashSessionToken(sessionToken.token),
+      new Date().toISOString(),
+    );
+  } catch (error) {
+    if (!shouldUseLocalDevelopmentFallback(context.env, error)) {
+      throw error;
+    }
+
+    sessionLookupRecord = findLocalDevelopmentSessionLookupRecord(sessionToken.token);
+  }
 
   if (!sessionLookupRecord) {
     context.set("requestSession", createInvalidSession("session_token_not_found", sessionToken.source));

@@ -14,15 +14,22 @@ export function renderWebAppShell(options: RenderedShellOptions = {}): string {
   const workspaceSlug = options.workspaceSlug ?? "demo-workspace";
   const activeRouteId: PlaceholderRouteId = options.activeRouteId ?? "workspace-overview";
   const route = getPlaceholderRoute(activeRouteId);
+  const routeState = resolveAppRoute(route.buildPath(workspaceSlug));
+
+  if (routeState.kind !== "workspace") {
+    throw new Error("Expected renderWebAppShell to resolve a workspace route.");
+  }
 
   return renderToStaticMarkup(
     createElement(AppShell, {
       workspaceSlug,
-      route,
+      routeState,
       sessionBootstrap: null,
       workspaceOverview: null,
       ticketList: null,
       ticketListError: null,
+      ticketDetail: null,
+      ticketDetailError: null,
     }),
   );
 }
@@ -33,11 +40,13 @@ function renderAppRouteBody(routeState: AppRouteState, loadedData?: LoadedAppRou
       return renderToStaticMarkup(
         createElement(AppShell, {
           workspaceSlug: routeState.workspaceSlug,
-          route: routeState.route,
+          routeState,
           sessionBootstrap: loadedData?.sessionBootstrap ?? null,
           workspaceOverview: loadedData?.workspaceOverview ?? null,
           ticketList: loadedData?.ticketList ?? null,
           ticketListError: loadedData?.ticketListError ?? null,
+          ticketDetail: loadedData?.ticketDetail ?? null,
+          ticketDetailError: loadedData?.ticketDetailError ?? null,
         }),
       );
     case "shared":

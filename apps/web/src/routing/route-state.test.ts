@@ -10,6 +10,20 @@ describe("app route state", () => {
       kind: "workspace",
       workspaceSlug: "acme",
       routeId: "share-links",
+      ticketId: null,
+      access: "protected",
+      authState: "pending",
+    });
+  });
+
+  it("matches the workspace-scoped ticket detail route under the tickets section", () => {
+    const route = resolveAppRoute("/workspaces/acme/tickets/tic_001");
+
+    expect(route).toMatchObject({
+      kind: "workspace",
+      workspaceSlug: "acme",
+      routeId: "tickets",
+      ticketId: "tic_001",
       access: "protected",
       authState: "pending",
     });

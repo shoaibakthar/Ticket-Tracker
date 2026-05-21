@@ -1,4 +1,4 @@
-import { isKnownRole, isKnownWorkspaceRole, type WorkspaceRole } from "../../../../packages/auth/src/roles";
+import { isKnownRole, isKnownWorkspaceRole, type WorkspaceRole } from "../../../../packages/auth/src/roles.ts";
 import type { WorkspaceOverviewData } from "../navigation/types.ts";
 
 export function readWorkspaceOverviewResponse(value: unknown): WorkspaceOverviewData {

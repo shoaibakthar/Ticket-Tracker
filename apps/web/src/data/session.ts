@@ -1,5 +1,5 @@
-import { isKnownPermission } from "../../../../packages/auth/src/permissions";
-import { isKnownRole, isKnownWorkspaceRole } from "../../../../packages/auth/src/roles";
+import { isKnownPermission } from "../../../../packages/auth/src/permissions.ts";
+import { isKnownRole, isKnownWorkspaceRole } from "../../../../packages/auth/src/roles.ts";
 import type {
   RouteAuthorizationSnapshot,
   SessionBootstrapData,

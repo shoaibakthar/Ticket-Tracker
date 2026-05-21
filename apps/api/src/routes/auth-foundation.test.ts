@@ -280,6 +280,359 @@ describe("API auth foundation", () => {
     });
   });
 
+  it("returns the workspace ticket detail for an authorized customer membership", async () => {
+    const response = await app.request(
+      "http://localhost/api/v1/workspaces/acme/tickets/tic_001",
+      {
+        headers: {
+          cookie: "oid_session=customer-token",
+        },
+      },
+      await createApiEnv(),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      data: {
+        workspace: {
+          id: "wsp_acme",
+          slug: "acme",
+          name: "Acme Workspace",
+        },
+        ticket: {
+          id: "tic_001",
+          ticketNumber: "TT-1",
+          title: "Customer cannot upload billing CSV",
+          description: "The customer billing CSV upload fails after validation completes.",
+          status: "open",
+          priority: "high",
+          dueDate: "2025-01-17T17:00:00.000Z",
+          updatedAt: "2025-01-10T09:00:00.000Z",
+          assignee: {
+            memberId: "mem_viewer",
+            userId: "usr_viewer",
+            displayName: "Viewer User",
+            email: "viewer@example.com",
+          },
+        },
+        summary: {
+          currentStanding:
+            "open priority high ticket assigned to Viewer User. Due 2025-01-17T17:00:00.000Z.",
+        },
+        sections: {
+          customerVisibleUpdates: [
+            {
+              id: "upd_001",
+              message: "We reproduced the upload problem and are working on a fix.",
+              createdAt: "2025-01-09T13:00:00.000Z",
+              updatedAt: "2025-01-09T13:00:00.000Z",
+              author: {
+                userId: "usr_support",
+                displayName: "Support User",
+                email: "support@example.com",
+              },
+            },
+          ],
+          internalNotes: null,
+          commentsActivity: [
+            {
+              id: "cmt_001",
+              kind: "comment",
+              visibility: "customer",
+              message: "We can reproduce this with the January export.",
+              createdAt: "2025-01-09T15:00:00.000Z",
+              updatedAt: "2025-01-09T15:00:00.000Z",
+              author: {
+                userId: "usr_customer",
+                displayName: "Customer User",
+                email: "customer@example.com",
+              },
+            },
+          ],
+          attachments: [
+            {
+              id: "att_001",
+              visibility: "customer",
+              filename: "billing-sample.csv",
+              contentType: "text/csv",
+              sizeBytes: 24576,
+              createdAt: "2025-01-08T10:00:00.000Z",
+            },
+          ],
+        },
+        access: {
+          actorRole: "WorkspaceAdmin",
+          accessPath: "workspace-membership",
+          canViewInternalNotes: false,
+          canViewAttachments: true,
+          canCreateInternalNotes: false,
+          canCreateCustomerUpdates: true,
+        },
+      },
+    });
+  });
+
+  it("hides internal-only tickets from customer actors without internal-note visibility", async () => {
+    const response = await app.request(
+      "http://localhost/api/v1/workspaces/acme/tickets/tic_internal",
+      {
+        headers: {
+          cookie: "oid_session=customer-token",
+        },
+      },
+      await createApiEnv(),
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "not_found",
+        message: "Ticket detail was not found.",
+      },
+    });
+  });
+
+  it("returns internal-only ticket detail for internal support actors", async () => {
+    const response = await app.request(
+      "http://localhost/api/v1/workspaces/acme/tickets/tic_internal",
+      {
+        headers: {
+          cookie: "oid_session=internal-token",
+          "x-observeid-platform-role": "SupportOperator",
+        },
+      },
+      await createApiEnv(),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      data: {
+        workspace: {
+          id: "wsp_acme",
+          slug: "acme",
+          name: "Acme Workspace",
+        },
+        ticket: {
+          id: "tic_internal",
+          ticketNumber: "TT-9",
+          title: "Escalation triage for support team only",
+          description: "Internal-only escalation thread for ObserveID operations.",
+          status: "blocked",
+          priority: "urgent",
+          dueDate: null,
+          updatedAt: "2025-01-12T08:15:00.000Z",
+          assignee: null,
+        },
+        summary: {
+          currentStanding: "blocked priority urgent ticket assigned to Unassigned. No due date is scheduled.",
+        },
+        sections: {
+          customerVisibleUpdates: [],
+          internalNotes: [
+            {
+              id: "upd_internal_001",
+              message: "Escalated to the operations triage queue for coordinated handling.",
+              createdAt: "2025-01-12T08:00:00.000Z",
+              updatedAt: "2025-01-12T08:00:00.000Z",
+              author: {
+                userId: "usr_support",
+                displayName: "Support User",
+                email: "support@example.com",
+              },
+            },
+          ],
+          commentsActivity: [
+            {
+              id: "cmt_internal_001",
+              kind: "comment",
+              visibility: "internal",
+              message: "Waiting on the escalation owner to confirm next steps.",
+              createdAt: "2025-01-12T08:10:00.000Z",
+              updatedAt: "2025-01-12T08:10:00.000Z",
+              author: {
+                userId: "usr_support",
+                displayName: "Support User",
+                email: "support@example.com",
+              },
+            },
+          ],
+          attachments: [
+            {
+              id: "att_internal_001",
+              visibility: "internal",
+              filename: "operations-runbook.txt",
+              contentType: "text/plain",
+              sizeBytes: 1024,
+              createdAt: "2025-01-12T08:05:00.000Z",
+            },
+          ],
+        },
+        access: {
+          actorRole: "SupportOperator",
+          accessPath: "cross-workspace-support",
+          canViewInternalNotes: true,
+          canViewAttachments: true,
+          canCreateInternalNotes: true,
+          canCreateCustomerUpdates: true,
+        },
+      },
+    });
+  });
+
+  it("creates a customer-visible update for an authorized workspace admin", async () => {
+    const env = await createApiEnv();
+    const response = await app.request(
+      "http://localhost/api/v1/workspaces/acme/tickets/tic_001/updates",
+      {
+        method: "POST",
+        headers: {
+          cookie: "oid_session=customer-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "We confirmed the failing rows and have a fix queued for deployment.",
+        }),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        entry: {
+          message: "We confirmed the failing rows and have a fix queued for deployment.",
+          visibility: "customer",
+        },
+      },
+    });
+
+    const detailResponse = await app.request(
+      "http://localhost/api/v1/workspaces/acme/tickets/tic_001",
+      {
+        headers: {
+          cookie: "oid_session=customer-token",
+        },
+      },
+      env,
+    );
+
+    expect(detailResponse.status).toBe(200);
+    await expect(detailResponse.json()).resolves.toMatchObject({
+      data: {
+        sections: {
+          customerVisibleUpdates: expect.arrayContaining([
+            expect.objectContaining({
+              message: "We confirmed the failing rows and have a fix queued for deployment.",
+            }),
+          ]),
+        },
+      },
+    });
+  });
+
+  it("returns validation errors for blank customer-visible updates", async () => {
+    const response = await app.request(
+      "http://localhost/api/v1/workspaces/acme/tickets/tic_001/updates",
+      {
+        method: "POST",
+        headers: {
+          cookie: "oid_session=customer-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "   ",
+        }),
+      },
+      await createApiEnv(),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "validation_error",
+        message: "A message is required.",
+      },
+    });
+  });
+
+  it("returns forbidden when a workspace admin attempts to create an internal note", async () => {
+    const response = await app.request(
+      "http://localhost/api/v1/workspaces/acme/tickets/tic_001/internal-notes",
+      {
+        method: "POST",
+        headers: {
+          cookie: "oid_session=customer-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "Internal-only follow-up.",
+        }),
+      },
+      await createApiEnv(),
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "forbidden",
+        message: "The current session cannot access this workspace route.",
+      },
+    });
+  });
+
+  it("creates an internal note for an authorized support operator", async () => {
+    const env = await createApiEnv();
+    const response = await app.request(
+      "http://localhost/api/v1/workspaces/acme/tickets/tic_internal/internal-notes",
+      {
+        method: "POST",
+        headers: {
+          cookie: "oid_session=internal-token",
+          "x-observeid-platform-role": "SupportOperator",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "Captured the latest triage handoff details for the escalation team.",
+        }),
+      },
+      env,
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        entry: {
+          message: "Captured the latest triage handoff details for the escalation team.",
+          visibility: "internal",
+        },
+      },
+    });
+
+    const detailResponse = await app.request(
+      "http://localhost/api/v1/workspaces/acme/tickets/tic_internal",
+      {
+        headers: {
+          cookie: "oid_session=internal-token",
+          "x-observeid-platform-role": "SupportOperator",
+        },
+      },
+      env,
+    );
+
+    expect(detailResponse.status).toBe(200);
+    await expect(detailResponse.json()).resolves.toMatchObject({
+      data: {
+        sections: {
+          internalNotes: expect.arrayContaining([
+            expect.objectContaining({
+              message: "Captured the latest triage handoff details for the escalation team.",
+            }),
+          ]),
+        },
+      },
+    });
+  });
+
   it("returns forbidden for the workspace ticket list when the session has no workspace access", async () => {
     const response = await app.request(
       "http://localhost/api/v1/workspaces/acme/tickets",
@@ -404,7 +757,7 @@ class FakeD1Database {
       slug: "acme",
       archivedAt: null,
     },
-  ] as const;
+  ];
 
   private readonly workspaces = [
     {
@@ -416,7 +769,7 @@ class FakeD1Database {
       isDefault: 1,
       archivedAt: null,
     },
-  ] as const;
+  ];
 
   private readonly users = [
     {
@@ -451,7 +804,7 @@ class FakeD1Database {
       status: "active",
       archivedAt: null,
     },
-  ] as const;
+  ];
 
   private readonly workspaceMembers = [
     {
@@ -470,17 +823,33 @@ class FakeD1Database {
       memberStatus: "active",
       archivedAt: null,
     },
-  ] as const;
+  ];
 
-  private readonly tickets = [
+  private readonly tickets: Array<{
+    id: string;
+    workspaceId: string;
+    ticketNumber: string;
+    title: string;
+    description: string | null;
+    status: string;
+    priority: string;
+    visibility: string;
+    assigneeMemberId: string | null;
+    dueDate: string | null;
+    updatedAt: string;
+    archivedAt: string | null;
+  }> = [
     {
       id: "tic_001",
       workspaceId: "wsp_acme",
       ticketNumber: "TT-1",
       title: "Customer cannot upload billing CSV",
+      description: "The customer billing CSV upload fails after validation completes.",
       status: "open",
       priority: "high",
+      visibility: "customer_visible",
       assigneeMemberId: "mem_viewer",
+      dueDate: "2025-01-17T17:00:00.000Z",
       updatedAt: "2025-01-10T09:00:00.000Z",
       archivedAt: null,
     },
@@ -489,13 +858,158 @@ class FakeD1Database {
       workspaceId: "wsp_acme",
       ticketNumber: "TT-2",
       title: "Page title truncates in the workspace shell",
+      description: null,
       status: "in_progress",
       priority: "medium",
+      visibility: "customer_visible",
       assigneeMemberId: null,
+      dueDate: null,
       updatedAt: "2025-01-11T15:30:00.000Z",
       archivedAt: null,
     },
-  ] as const;
+    {
+      id: "tic_internal",
+      workspaceId: "wsp_acme",
+      ticketNumber: "TT-9",
+      title: "Escalation triage for support team only",
+      description: "Internal-only escalation thread for ObserveID operations.",
+      status: "blocked",
+      priority: "urgent",
+      visibility: "internal_only",
+      assigneeMemberId: null,
+      dueDate: null,
+      updatedAt: "2025-01-12T08:15:00.000Z",
+      archivedAt: null,
+    },
+  ];
+
+  private readonly ticketUpdates: Array<{
+    id: string;
+    ticketId: string;
+    authorUserId: string;
+    visibility: string;
+    messageJson: string;
+    createdAt: string;
+    updatedAt: string;
+    archivedAt: string | null;
+  }> = [
+    {
+      id: "upd_001",
+      ticketId: "tic_001",
+      authorUserId: "usr_support",
+      visibility: "customer",
+      messageJson: JSON.stringify({
+        text: "We reproduced the upload problem and are working on a fix.",
+      }),
+      createdAt: "2025-01-09T13:00:00.000Z",
+      updatedAt: "2025-01-09T13:00:00.000Z",
+      archivedAt: null,
+    },
+    {
+      id: "upd_002",
+      ticketId: "tic_001",
+      authorUserId: "usr_support",
+      visibility: "internal",
+      messageJson: JSON.stringify({
+        text: "Likely tied to CSV header normalization in the legacy importer.",
+      }),
+      createdAt: "2025-01-09T14:00:00.000Z",
+      updatedAt: "2025-01-09T14:00:00.000Z",
+      archivedAt: null,
+    },
+    {
+      id: "upd_internal_001",
+      ticketId: "tic_internal",
+      authorUserId: "usr_support",
+      visibility: "internal",
+      messageJson: JSON.stringify({
+        text: "Escalated to the operations triage queue for coordinated handling.",
+      }),
+      createdAt: "2025-01-12T08:00:00.000Z",
+      updatedAt: "2025-01-12T08:00:00.000Z",
+      archivedAt: null,
+    },
+  ];
+
+  private readonly ticketComments = [
+    {
+      id: "cmt_001",
+      ticketId: "tic_001",
+      authorUserId: "usr_customer",
+      visibility: "customer",
+      bodyJson: JSON.stringify({
+        text: "We can reproduce this with the January export.",
+      }),
+      createdAt: "2025-01-09T15:00:00.000Z",
+      updatedAt: "2025-01-09T15:00:00.000Z",
+      archivedAt: null,
+    },
+    {
+      id: "cmt_002",
+      ticketId: "tic_001",
+      authorUserId: "usr_support",
+      visibility: "internal",
+      bodyJson: JSON.stringify({
+        text: "Need to verify the fix against older CSV templates.",
+      }),
+      createdAt: "2025-01-09T16:00:00.000Z",
+      updatedAt: "2025-01-09T16:00:00.000Z",
+      archivedAt: null,
+    },
+    {
+      id: "cmt_internal_001",
+      ticketId: "tic_internal",
+      authorUserId: "usr_support",
+      visibility: "internal",
+      bodyJson: JSON.stringify({
+        text: "Waiting on the escalation owner to confirm next steps.",
+      }),
+      createdAt: "2025-01-12T08:10:00.000Z",
+      updatedAt: "2025-01-12T08:10:00.000Z",
+      archivedAt: null,
+    },
+  ];
+
+  private readonly attachments = [
+    {
+      id: "att_001",
+      workspaceId: "wsp_acme",
+      linkedResourceType: "ticket",
+      linkedResourceId: "tic_001",
+      uploadedByUserId: "usr_customer",
+      originalFilename: "billing-sample.csv",
+      contentType: "text/csv",
+      sizeBytes: 24576,
+      visibility: "customer",
+      createdAt: "2025-01-08T10:00:00.000Z",
+      archivedAt: null,
+    },
+    {
+      id: "att_internal_001",
+      workspaceId: "wsp_acme",
+      linkedResourceType: "ticket",
+      linkedResourceId: "tic_internal",
+      uploadedByUserId: "usr_support",
+      originalFilename: "operations-runbook.txt",
+      contentType: "text/plain",
+      sizeBytes: 1024,
+      visibility: "internal",
+      createdAt: "2025-01-12T08:05:00.000Z",
+      archivedAt: null,
+    },
+  ];
+
+  private readonly auditEvents: Array<{
+    id: string;
+    actorUserId: string;
+    actorType: string;
+    workspaceId: string;
+    resourceType: string;
+    resourceId: string;
+    action: string;
+    metadataJson: string;
+    createdAt: string;
+  }> = [];
 
   constructor(private readonly sessions: readonly SessionSeed[]) {}
 
@@ -504,7 +1018,60 @@ class FakeD1Database {
   }
 
   async execute(query: string, bindings: readonly unknown[]) {
-    if (query.includes("FROM sessions")) {
+    const normalizedQuery = query.replaceAll(/\s+/g, " ").trim();
+
+    if (normalizedQuery.startsWith("INSERT INTO ticket_updates")) {
+      const [id, ticketId, authorUserId, visibility, messageJson, createdAt, updatedAt] = bindings as [
+        string,
+        string,
+        string,
+        string,
+        string,
+        string,
+        string,
+      ];
+      this.ticketUpdates.push({
+        id,
+        ticketId,
+        authorUserId,
+        visibility,
+        messageJson,
+        createdAt,
+        updatedAt,
+        archivedAt: null,
+      });
+      return [];
+    }
+
+    if (normalizedQuery.startsWith("UPDATE tickets SET updated_at")) {
+      const [updatedAt, ticketId] = bindings as [string, string];
+      const ticket = this.tickets.find((candidate) => candidate.id === ticketId);
+
+      if (ticket) {
+        ticket.updatedAt = updatedAt;
+      }
+
+      return [];
+    }
+
+    if (normalizedQuery.startsWith("INSERT INTO audit_events")) {
+      const [id, actorUserId, actorType, workspaceId, resourceType, resourceId, action, metadataJson, createdAt] =
+        bindings as [string, string, string, string, string, string, string, string, string];
+      this.auditEvents.push({
+        id,
+        actorUserId,
+        actorType,
+        workspaceId,
+        resourceType,
+        resourceId,
+        action,
+        metadataJson,
+        createdAt,
+      });
+      return [];
+    }
+
+    if (normalizedQuery.includes("FROM sessions")) {
       const [tokenHash, nowIso] = bindings as [string, string];
       const session = this.sessions.find(
         (candidate) =>
@@ -539,7 +1106,7 @@ class FakeD1Database {
       ];
     }
 
-    if (query.includes("COUNT(")) {
+    if (normalizedQuery.includes("COUNT(")) {
       const [workspaceSlug] = bindings as [string];
       const workspace = this.workspaces.find((candidate) => candidate.slug === workspaceSlug);
 
@@ -573,12 +1140,135 @@ class FakeD1Database {
       ];
     }
 
-    if (query.includes("FROM tickets")) {
-      const [workspaceId] = bindings as [string];
+    if (normalizedQuery.includes("FROM ticket_updates")) {
+      const [ticketId, visibility] = bindings as [string, string];
+
+      return this.ticketUpdates
+        .filter(
+          (entry) =>
+            entry.ticketId === ticketId &&
+            entry.visibility === visibility &&
+            entry.archivedAt === null,
+        )
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+        .map((entry) => {
+          const author = this.users.find((candidate) => candidate.id === entry.authorUserId)!;
+
+          return {
+            entryId: entry.id,
+            messageJson: entry.messageJson,
+            createdAt: entry.createdAt,
+            updatedAt: entry.updatedAt,
+            authorUserId: author.id,
+            authorDisplayName: author.fullName,
+            authorEmail: author.email,
+          };
+        });
+    }
+
+    if (normalizedQuery.includes("FROM ticket_comments")) {
+      const [ticketId, includeInternalFlag] = bindings as [string, number];
+
+      return this.ticketComments
+        .filter(
+          (comment) =>
+            comment.ticketId === ticketId &&
+            comment.archivedAt === null &&
+            (includeInternalFlag === 1 || comment.visibility !== "internal"),
+        )
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+        .map((comment) => {
+          const author = this.users.find((candidate) => candidate.id === comment.authorUserId)!;
+
+          return {
+            commentId: comment.id,
+            visibility: comment.visibility,
+            bodyJson: comment.bodyJson,
+            createdAt: comment.createdAt,
+            updatedAt: comment.updatedAt,
+            authorUserId: author.id,
+            authorDisplayName: author.fullName,
+            authorEmail: author.email,
+          };
+        });
+    }
+
+    if (normalizedQuery.includes("FROM attachments")) {
+      const [workspaceId, ticketId, includeInternalFlag] = bindings as [string, string, number];
+
+      return this.attachments
+        .filter(
+          (attachment) =>
+            attachment.workspaceId === workspaceId &&
+            attachment.linkedResourceType === "ticket" &&
+            attachment.linkedResourceId === ticketId &&
+            attachment.archivedAt === null &&
+            (includeInternalFlag === 1 || attachment.visibility !== "internal"),
+        )
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+        .map((attachment) => ({
+          attachmentId: attachment.id,
+          visibility: attachment.visibility,
+          filename: attachment.originalFilename,
+          contentType: attachment.contentType,
+          sizeBytes: attachment.sizeBytes,
+          createdAt: attachment.createdAt,
+        }));
+    }
+
+    if (normalizedQuery.includes("FROM tickets") && normalizedQuery.includes("tickets.id = ?")) {
+      const [workspaceId, ticketId] = bindings as [string, string];
+      const ticket = this.tickets.find(
+        (candidate) =>
+          candidate.workspaceId === workspaceId &&
+          candidate.id === ticketId &&
+          candidate.archivedAt === null,
+      );
+
+      if (!ticket) {
+        return [];
+      }
+
+      const assigneeMember = ticket.assigneeMemberId
+        ? this.workspaceMembers.find((candidate) => candidate.id === ticket.assigneeMemberId)
+        : null;
+      const assigneeUser = assigneeMember
+        ? this.users.find((candidate) => candidate.id === assigneeMember.userId)
+        : null;
+
+      return [
+        {
+          ticketId: ticket.id,
+          ticketNumber: ticket.ticketNumber,
+          title: ticket.title,
+          description: ticket.description,
+          status: ticket.status,
+          priority: ticket.priority,
+          visibility: ticket.visibility,
+          dueDate: ticket.dueDate,
+          updatedAt: ticket.updatedAt,
+          assigneeMemberId: assigneeMember?.id ?? null,
+          assigneeUserId: assigneeUser?.id ?? null,
+          assigneeDisplayName: assigneeUser?.fullName ?? null,
+          assigneeEmail: assigneeUser?.email ?? null,
+        },
+      ];
+    }
+
+    if (normalizedQuery.includes("FROM tickets")) {
+      const [workspaceId, includeInternalOnlyFlag] = bindings as [string, number];
 
       return this.tickets
-        .filter((ticket) => ticket.workspaceId === workspaceId && ticket.archivedAt === null)
-        .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt) || right.ticketNumber.localeCompare(left.ticketNumber))
+        .filter(
+          (ticket) =>
+            ticket.workspaceId === workspaceId &&
+            ticket.archivedAt === null &&
+            (includeInternalOnlyFlag === 1 || ticket.visibility !== "internal_only"),
+        )
+        .sort(
+          (left, right) =>
+            right.updatedAt.localeCompare(left.updatedAt) || right.ticketNumber.localeCompare(left.ticketNumber),
+        )
         .map((ticket) => {
           const assigneeMember = ticket.assigneeMemberId
             ? this.workspaceMembers.find((candidate) => candidate.id === ticket.assigneeMemberId)
@@ -593,6 +1283,7 @@ class FakeD1Database {
             title: ticket.title,
             status: ticket.status,
             priority: ticket.priority,
+            visibility: ticket.visibility,
             updatedAt: ticket.updatedAt,
             assigneeMemberId: assigneeMember?.id ?? null,
             assigneeUserId: assigneeUser?.id ?? null,
@@ -602,7 +1293,7 @@ class FakeD1Database {
         });
     }
 
-    if (query.includes("WHERE workspace_members.user_id = ?") && query.includes("workspaces.slug = ?")) {
+    if (normalizedQuery.includes("WHERE workspace_members.user_id = ?") && normalizedQuery.includes("workspaces.slug = ?")) {
       const [userId, workspaceSlug] = bindings as [string, string];
       const workspace = this.workspaces.find((candidate) => candidate.slug === workspaceSlug);
 
@@ -632,7 +1323,7 @@ class FakeD1Database {
       ];
     }
 
-    if (query.includes("WHERE workspace_members.user_id = ?")) {
+    if (normalizedQuery.includes("WHERE workspace_members.user_id = ?")) {
       const [userId] = bindings as [string];
 
       return this.workspaceMembers
@@ -657,7 +1348,7 @@ class FakeD1Database {
         .filter((row): row is NonNullable<typeof row> => row !== null);
     }
 
-    if (query.includes("FROM workspaces") && !query.includes("workspace_members")) {
+    if (normalizedQuery.includes("FROM workspaces") && !normalizedQuery.includes("workspace_members")) {
       return this.workspaces.map((workspace) => {
         const tenant = this.tenants.find((candidate) => candidate.id === workspace.tenantId)!;
 
@@ -698,5 +1389,10 @@ class FakePreparedStatement {
     return {
       results: (await this.database.execute(this.query, this.bindings)) as unknown as readonly Row[],
     };
+  }
+
+  async run() {
+    await this.database.execute(this.query, this.bindings);
+    return {};
   }
 }

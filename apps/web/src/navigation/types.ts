@@ -13,11 +13,14 @@ export type PlaceholderRouteId =
 
 export interface PlaceholderScreenProps {
   readonly workspaceSlug: string;
+  readonly routeState: WorkspaceRouteState;
   readonly requiredPermissions: readonly Permission[];
   readonly sessionBootstrap: SessionBootstrapData | null;
   readonly workspaceOverview: WorkspaceOverviewData | null;
   readonly ticketList: TicketListData | null;
   readonly ticketListError: string | null;
+  readonly ticketDetail: TicketDetailData | null;
+  readonly ticketDetailError: string | null;
 }
 
 export interface PlaceholderRouteModule {
@@ -49,6 +52,7 @@ export interface WorkspaceRouteState {
   readonly pathname: string;
   readonly workspaceSlug: string;
   readonly routeId: PlaceholderRouteId;
+  readonly ticketId: string | null;
   readonly route: PlaceholderRouteModule;
   readonly access: "protected";
   readonly authState: "pending";
@@ -180,6 +184,7 @@ export interface TicketListItem {
   readonly title: string;
   readonly status: string;
   readonly priority: string;
+  readonly href: string;
   readonly updatedAt: string;
   readonly assignee: {
     readonly memberId: string;
@@ -196,4 +201,80 @@ export interface TicketListData {
     readonly name: string;
   };
   readonly items: readonly TicketListItem[];
+}
+
+export interface TicketDetailData {
+  readonly workspace: {
+    readonly id: string;
+    readonly slug: string;
+    readonly name: string;
+  };
+  readonly ticket: {
+    readonly id: string;
+    readonly ticketNumber: string;
+    readonly title: string;
+    readonly description: string | null;
+    readonly status: string;
+    readonly priority: string;
+    readonly dueDate: string | null;
+    readonly updatedAt: string;
+    readonly assignee: {
+      readonly memberId: string;
+      readonly userId: string;
+      readonly displayName: string | null;
+      readonly email: string;
+    } | null;
+  };
+  readonly summary: {
+    readonly currentStanding: string;
+  };
+  readonly sections: {
+    readonly customerVisibleUpdates: readonly TicketCommunicationEntry[];
+    readonly internalNotes: readonly TicketCommunicationEntry[] | null;
+    readonly commentsActivity: readonly TicketActivityEntry[];
+    readonly attachments: readonly TicketAttachmentSummary[];
+  };
+  readonly access: {
+    readonly actorRole: Role;
+    readonly accessPath: "workspace-membership" | "cross-workspace-support";
+    readonly canViewInternalNotes: boolean;
+    readonly canViewAttachments: boolean;
+    readonly canCreateInternalNotes: boolean;
+    readonly canCreateCustomerUpdates: boolean;
+  };
+}
+
+export interface TicketCommunicationEntry {
+  readonly id: string;
+  readonly message: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly author: {
+    readonly userId: string;
+    readonly displayName: string | null;
+    readonly email: string;
+  };
+}
+
+export interface TicketActivityEntry {
+  readonly id: string;
+  readonly kind: "comment";
+  readonly visibility: "customer" | "internal";
+  readonly message: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly author: {
+    readonly userId: string;
+    readonly displayName: string | null;
+    readonly email: string;
+  };
+}
+
+export interface TicketAttachmentSummary {
+  readonly id: string;
+  readonly visibility: "customer" | "internal";
+  readonly filename: string;
+  readonly contentType: string;
+  readonly sizeBytes: number;
+  readonly createdAt: string;
 }

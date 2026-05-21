@@ -15,10 +15,13 @@ interface ScreenPlaceholderProps {
   readonly bodyTitle: string;
   readonly bodyDescription: string;
   readonly requiredPermissions: readonly Permission[];
+  readonly routeState?: unknown;
   readonly sessionBootstrap: unknown;
   readonly workspaceOverview: unknown;
   readonly ticketList?: unknown;
   readonly ticketListError?: unknown;
+  readonly ticketDetail?: unknown;
+  readonly ticketDetailError?: unknown;
 }
 
 export function ScreenPlaceholder({
@@ -30,10 +33,13 @@ export function ScreenPlaceholder({
   bodyTitle,
   bodyDescription,
   requiredPermissions,
+  routeState: _routeState,
   sessionBootstrap: _sessionBootstrap,
   workspaceOverview: _workspaceOverview,
   ticketList: _ticketList,
   ticketListError: _ticketListError,
+  ticketDetail: _ticketDetail,
+  ticketDetailError: _ticketDetailError,
 }: ScreenPlaceholderProps): ReactElement {
   const emptyStateProps = primaryActionLabel
     ? {

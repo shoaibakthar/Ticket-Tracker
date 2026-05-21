@@ -57,6 +57,35 @@ export function resolveAppRoute(pathname: string): AppRouteState {
     };
   }
 
+  const ticketDetailMatch = normalizedPathname.match(/^\/workspaces\/([^/]+)\/tickets\/([^/]+)$/);
+
+  if (ticketDetailMatch?.[1] && ticketDetailMatch[2]) {
+    const workspaceSlug = decodeURIComponent(ticketDetailMatch[1]);
+    const ticketId = decodeURIComponent(ticketDetailMatch[2]);
+    const route = getWorkspacePlaceholderRoute("tickets");
+
+    return {
+      kind: "workspace",
+      pathname: normalizedPathname,
+      workspaceSlug,
+      routeId: "tickets",
+      ticketId,
+      route,
+      access: "protected",
+      authState: "pending",
+      routeGuard: {
+        strategy: "authenticated-workspace-membership",
+        fallbackPath: "/not-authorized",
+        requiredPermissions: route.requiredPermissions,
+      },
+      authorization: {
+        sessionState: "pending",
+        permissionState: "pending",
+        missingPermissions: [],
+      },
+    };
+  }
+
   const workspaceMatch = normalizedPathname.match(/^\/workspaces\/([^/]+)\/([^/]+)$/);
 
   if (workspaceMatch?.[1] && workspaceMatch[2]) {
@@ -69,6 +98,7 @@ export function resolveAppRoute(pathname: string): AppRouteState {
         pathname: normalizedPathname,
         workspaceSlug,
         routeId,
+        ticketId: null,
         route: getWorkspacePlaceholderRoute(routeId),
         access: "protected",
         authState: "pending",
