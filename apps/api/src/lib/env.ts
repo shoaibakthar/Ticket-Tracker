@@ -16,14 +16,17 @@ export const apiVariableSchema = z.object({
 
 export type CloudflareD1Binding = D1Database;
 
-export interface CloudflareR2BindingPlaceholder {
-  readonly bindingType: "r2";
-  readonly status: "placeholder";
+export interface CloudflareR2ObjectBody {
+  arrayBuffer(): Promise<ArrayBufferLike>;
+}
+
+export interface CloudflareR2Binding {
+  get(key: string): Promise<CloudflareR2ObjectBody | null>;
 }
 
 export interface ApiPlatformBindings {
   readonly DB: CloudflareD1Binding;
-  readonly ATTACHMENTS: CloudflareR2BindingPlaceholder;
+  readonly ATTACHMENTS: CloudflareR2Binding;
 }
 
 export type ApiVariables = z.infer<typeof apiVariableSchema>;

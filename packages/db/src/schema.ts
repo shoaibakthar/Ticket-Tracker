@@ -23,10 +23,14 @@ export const workspaceRoleValues = [
 export const ticketStatusValues = [
   "New",
   "Open",
+  "Investigating",
+  "Identified",
   "InProgress",
   "WaitingOnObserveID",
   "WaitingOnCustomer",
+  "WaitingOnVendor",
   "Blocked",
+  "Monitoring",
   "Resolved",
   "Closed",
 ] as const;

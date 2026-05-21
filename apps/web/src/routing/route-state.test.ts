@@ -3,6 +3,14 @@ import { describe, expect, it } from "vitest";
 import { applyRouteAuthorizationSnapshot, resolveAppRoute } from "./route-state.ts";
 
 describe("app route state", () => {
+  it("maps the root path to the product landing page", () => {
+    expect(resolveAppRoute("/")).toEqual({
+      kind: "marketing",
+      pathname: "/",
+      access: "public",
+    });
+  });
+
   it("matches documented workspace-scoped placeholder routes", () => {
     const route = resolveAppRoute("/workspaces/acme/share-links");
 

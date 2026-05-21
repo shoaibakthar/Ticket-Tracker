@@ -4,6 +4,7 @@ import { loadAppRouteData, type LoadedAppRouteData } from "./data/app-loader.ts"
 import { renderNotAuthorizedScreen } from "./routes/not-authorized.ts";
 import { renderNotFoundScreen } from "./routes/not-found.ts";
 import { renderSharedRouteShell } from "./routes/shared.ts";
+import { renderLandingPage } from "./routes/landing.ts";
 import { AppShell } from "./layout/shell.ts";
 import { createElement } from "./lib/element.ts";
 import { getPlaceholderRoute } from "./routes/index.ts";
@@ -21,21 +22,25 @@ export function renderWebAppShell(options: RenderedShellOptions = {}): string {
   }
 
   return renderToStaticMarkup(
-    createElement(AppShell, {
-      workspaceSlug,
-      routeState,
-      sessionBootstrap: null,
-      workspaceOverview: null,
-      ticketList: null,
-      ticketListError: null,
-      ticketDetail: null,
-      ticketDetailError: null,
-    }),
+      createElement(AppShell, {
+        workspaceSlug,
+        routeState,
+        sessionBootstrap: null,
+        workspaceOverview: null,
+        ticketList: null,
+        ticketListError: null,
+        ticketDetail: null,
+        ticketDetailError: null,
+        ticketCommunicationSubmission: null,
+        ticketFieldEditSubmission: null,
+      }),
   );
 }
 
 function renderAppRouteBody(routeState: AppRouteState, loadedData?: LoadedAppRouteData): string {
   switch (routeState.kind) {
+    case "marketing":
+      return renderToStaticMarkup(renderLandingPage());
     case "workspace":
       return renderToStaticMarkup(
         createElement(AppShell, {
@@ -47,6 +52,8 @@ function renderAppRouteBody(routeState: AppRouteState, loadedData?: LoadedAppRou
           ticketListError: loadedData?.ticketListError ?? null,
           ticketDetail: loadedData?.ticketDetail ?? null,
           ticketDetailError: loadedData?.ticketDetailError ?? null,
+          ticketCommunicationSubmission: loadedData?.ticketCommunicationSubmission ?? null,
+          ticketFieldEditSubmission: loadedData?.ticketFieldEditSubmission ?? null,
         }),
       );
     case "shared":
@@ -65,6 +72,8 @@ function renderAppRouteBody(routeState: AppRouteState, loadedData?: LoadedAppRou
 
 function getDocumentTitle(routeState: AppRouteState): string {
   switch (routeState.kind) {
+    case "marketing":
+      return "ObserveID Ticket Tracker | Operational ticket workflow";
     case "workspace":
       return `${routeState.route.title} | Ticket Tracker`;
     case "shared":
@@ -130,11 +139,13 @@ export async function renderWebAppDocumentFromApi(
   },
 ): Promise<string> {
   return renderLoadedWebAppDocument(
-    await loadAppRouteData(pathname, {
-      apiBaseUrl: options.apiBaseUrl,
-      fetchImpl: options.fetchImpl ?? fetch,
-    }),
-  );
+      await loadAppRouteData(pathname, {
+        apiBaseUrl: options.apiBaseUrl,
+        fetchImpl: options.fetchImpl ?? fetch,
+        ticketCommunicationSubmission: null,
+        ticketFieldEditSubmission: null,
+      }),
+    );
 }
 
 export const webAppScaffold = {

@@ -4,6 +4,8 @@ import { createElement } from "../lib/element.ts";
 import { buildSidebarNavigation, buildWorkspaceSwitcherItems } from "../navigation/sidebar.ts";
 import type {
   SessionBootstrapData,
+  TicketCommunicationSubmissionState,
+  TicketFieldEditSubmissionState,
   TicketDetailData,
   TicketListData,
   WorkspaceRouteState,
@@ -21,6 +23,8 @@ interface AppShellProps {
   readonly ticketListError: string | null;
   readonly ticketDetail: TicketDetailData | null;
   readonly ticketDetailError: string | null;
+  readonly ticketCommunicationSubmission: TicketCommunicationSubmissionState | null;
+  readonly ticketFieldEditSubmission: TicketFieldEditSubmissionState | null;
 }
 
 export function AppShell({
@@ -32,6 +36,8 @@ export function AppShell({
   ticketListError,
   ticketDetail,
   ticketDetailError,
+  ticketCommunicationSubmission,
+  ticketFieldEditSubmission,
 }: AppShellProps): ReactElement {
   const route = routeState.route;
   const sidebarSections = buildSidebarNavigation(workspaceSlug, route.id, sessionBootstrap);
@@ -40,11 +46,11 @@ export function AppShell({
   return createElement(
     "div",
     { className: "app-shell" },
-      createElement(Sidebar, {
-        workspaceSlug,
-        sections: sidebarSections,
-        workspaceOptions,
-      }),
+    createElement(Sidebar, {
+      workspaceSlug,
+      sections: sidebarSections,
+      workspaceOptions,
+    }),
     createElement(
       "div",
       { className: "app-shell__main" },
@@ -59,18 +65,20 @@ export function AppShell({
           className: "app-shell__content",
           "aria-labelledby": "page-title",
         },
-          route.renderScreen({
-            workspaceSlug,
-            routeState,
-            requiredPermissions: route.requiredPermissions,
-            sessionBootstrap,
-            workspaceOverview,
-            ticketList,
-            ticketListError,
-            ticketDetail,
-            ticketDetailError,
-          }),
-        ),
+        route.renderScreen({
+          workspaceSlug,
+          routeState,
+          requiredPermissions: route.requiredPermissions,
+          sessionBootstrap,
+          workspaceOverview,
+          ticketList,
+          ticketListError,
+          ticketDetail,
+          ticketDetailError,
+          ticketCommunicationSubmission,
+          ticketFieldEditSubmission,
+        }),
       ),
+    ),
   );
 }

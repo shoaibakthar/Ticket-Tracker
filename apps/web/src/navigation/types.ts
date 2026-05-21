@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import type { Permission } from "../../../../packages/auth/src/permissions";
 import type { Role, WorkspaceRole } from "../../../../packages/auth/src/roles";
+import type { TicketListSort } from "../../../../packages/types/src/tickets.ts";
 
 export type PlaceholderRouteId =
   | "workspace-overview"
@@ -21,6 +22,8 @@ export interface PlaceholderScreenProps {
   readonly ticketListError: string | null;
   readonly ticketDetail: TicketDetailData | null;
   readonly ticketDetailError: string | null;
+  readonly ticketCommunicationSubmission: TicketCommunicationSubmissionState | null;
+  readonly ticketFieldEditSubmission: TicketFieldEditSubmissionState | null;
 }
 
 export interface PlaceholderRouteModule {
@@ -60,6 +63,12 @@ export interface WorkspaceRouteState {
   readonly authorization: WorkspaceRouteAuthorizationPlaceholder;
 }
 
+export interface MarketingRouteState {
+  readonly kind: "marketing";
+  readonly pathname: "/";
+  readonly access: "public";
+}
+
 export interface SharedRouteState {
   readonly kind: "shared";
   readonly pathname: string;
@@ -82,6 +91,7 @@ export interface NotFoundRouteState {
 }
 
 export type AppRouteState =
+  | MarketingRouteState
   | WorkspaceRouteState
   | SharedRouteState
   | NotAuthorizedRouteState
@@ -201,6 +211,25 @@ export interface TicketListData {
     readonly name: string;
   };
   readonly items: readonly TicketListItem[];
+  readonly filters: {
+    readonly applied: {
+      readonly status: string | null;
+      readonly priority: string | null;
+      readonly assigneeMemberId: string | null;
+      readonly q: string | null;
+      readonly sort: TicketListSort;
+    };
+    readonly statusOptions: readonly string[];
+    readonly priorityOptions: readonly string[];
+    readonly assigneeOptions: readonly {
+      readonly memberId: string;
+      readonly userId: string;
+      readonly displayName: string | null;
+      readonly email: string;
+    }[];
+    readonly totalVisibleCount: number;
+    readonly filteredCount: number;
+  };
 }
 
 export interface TicketDetailData {
@@ -228,10 +257,15 @@ export interface TicketDetailData {
   readonly summary: {
     readonly currentStanding: string;
   };
+  readonly editing: {
+    readonly statusOptions: readonly string[];
+    readonly priorityOptions: readonly string[];
+    readonly assigneeOptions: readonly TicketActorSummaryWithMemberId[];
+  };
   readonly sections: {
     readonly customerVisibleUpdates: readonly TicketCommunicationEntry[];
     readonly internalNotes: readonly TicketCommunicationEntry[] | null;
-    readonly commentsActivity: readonly TicketActivityEntry[];
+    readonly activityTimeline: readonly TicketActivityEntry[];
     readonly attachments: readonly TicketAttachmentSummary[];
   };
   readonly access: {
@@ -241,6 +275,9 @@ export interface TicketDetailData {
     readonly canViewAttachments: boolean;
     readonly canCreateInternalNotes: boolean;
     readonly canCreateCustomerUpdates: boolean;
+    readonly canUpdateTicketFields: boolean;
+    readonly canAssignTickets: boolean;
+    readonly canChangeTicketStatus: boolean;
   };
 }
 
@@ -249,32 +286,112 @@ export interface TicketCommunicationEntry {
   readonly message: string;
   readonly createdAt: string;
   readonly updatedAt: string;
-  readonly author: {
-    readonly userId: string;
-    readonly displayName: string | null;
-    readonly email: string;
-  };
+  readonly author: TicketActorSummary;
 }
 
-export interface TicketActivityEntry {
+export interface TicketActorSummary {
+  readonly userId: string;
+  readonly displayName: string | null;
+  readonly email: string;
+}
+
+export interface TicketCommentActivityEntry {
   readonly id: string;
   readonly kind: "comment";
   readonly visibility: "customer" | "internal";
   readonly message: string;
   readonly createdAt: string;
   readonly updatedAt: string;
-  readonly author: {
-    readonly userId: string;
-    readonly displayName: string | null;
-    readonly email: string;
-  };
+  readonly author: TicketActorSummary;
 }
+
+export interface TicketCustomerUpdateActivityEntry {
+  readonly id: string;
+  readonly kind: "customer_update";
+  readonly visibility: "customer";
+  readonly message: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly author: TicketActorSummary;
+}
+
+export interface TicketInternalNoteActivityEntry {
+  readonly id: string;
+  readonly kind: "internal_note";
+  readonly visibility: "internal";
+  readonly message: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly author: TicketActorSummary;
+}
+
+export interface TicketAttachmentActivityEntry {
+  readonly id: string;
+  readonly kind: "attachment";
+  readonly visibility: "customer" | "internal";
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly author: TicketActorSummary;
+  readonly attachment: TicketAttachmentSummary;
+}
+
+export interface TicketFieldChangeActivityEntry {
+  readonly id: string;
+  readonly kind: "field_change";
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly author: TicketActorSummary;
+  readonly changes: readonly {
+    readonly field: "status" | "priority" | "assignee" | "dueDate";
+    readonly label: string;
+    readonly from: string | null;
+    readonly to: string | null;
+  }[];
+}
+
+export type TicketActivityEntry =
+  | TicketCustomerUpdateActivityEntry
+  | TicketInternalNoteActivityEntry
+  | TicketCommentActivityEntry
+  | TicketAttachmentActivityEntry
+  | TicketFieldChangeActivityEntry;
 
 export interface TicketAttachmentSummary {
   readonly id: string;
   readonly visibility: "customer" | "internal";
   readonly filename: string;
+  readonly downloadPath: string;
   readonly contentType: string;
   readonly sizeBytes: number;
   readonly createdAt: string;
+  readonly uploadedBy: TicketActorSummary;
+}
+
+export interface TicketActorSummaryWithMemberId extends TicketActorSummary {
+  readonly memberId: string;
+}
+
+export type TicketCommunicationIntent = "create-customer-update" | "create-internal-note";
+
+export interface TicketCommunicationSubmissionState {
+  readonly intent: TicketCommunicationIntent;
+  readonly status: "success" | "error";
+  readonly message: string;
+  readonly draftMessage: string;
+}
+
+export type TicketFieldEditIntent = "update-ticket-fields";
+
+export interface TicketFieldEditDraft {
+  readonly status?: string;
+  readonly priority?: string;
+  readonly assigneeMemberId?: string;
+  readonly dueDate?: string;
+}
+
+export interface TicketFieldEditSubmissionState {
+  readonly intent: TicketFieldEditIntent;
+  readonly status: "success" | "error";
+  readonly message: string;
+  readonly draft: TicketFieldEditDraft | null;
 }

@@ -1,6 +1,8 @@
 import type {
   AppRouteState,
   SessionBootstrapData,
+  TicketCommunicationSubmissionState,
+  TicketFieldEditSubmissionState,
   TicketDetailData,
   TicketListData,
   WorkspaceOverviewData,
@@ -27,16 +29,23 @@ export interface LoadedAppRouteData {
   readonly ticketListError: string | null;
   readonly ticketDetail: TicketDetailData | null;
   readonly ticketDetailError: string | null;
+  readonly ticketCommunicationSubmission: TicketCommunicationSubmissionState | null;
+  readonly ticketFieldEditSubmission: TicketFieldEditSubmissionState | null;
 }
 
 export async function loadAppRouteData(
-  pathname: string,
+  requestedPath: string,
   options: {
     readonly apiBaseUrl: string;
     readonly fetchImpl: FetchLike;
+    readonly ticketCommunicationSubmission?: TicketCommunicationSubmissionState | null;
+    readonly ticketFieldEditSubmission?: TicketFieldEditSubmissionState | null;
   },
 ): Promise<LoadedAppRouteData> {
-  const initialRouteState = resolveAppRoute(pathname);
+  const ticketCommunicationSubmission = options.ticketCommunicationSubmission ?? null;
+  const ticketFieldEditSubmission = options.ticketFieldEditSubmission ?? null;
+  const requestUrl = new URL(requestedPath, "http://localhost");
+  const initialRouteState = resolveAppRoute(requestUrl.pathname);
 
   if (initialRouteState.kind !== "workspace") {
     return {
@@ -47,11 +56,35 @@ export async function loadAppRouteData(
       ticketListError: null,
       ticketDetail: null,
       ticketDetailError: null,
+      ticketCommunicationSubmission,
+      ticketFieldEditSubmission,
     };
   }
 
   const sessionResponse = await options.fetchImpl(`${options.apiBaseUrl}/api/v1/session`);
-  const sessionBootstrap = readSessionBootstrapResponse(await sessionResponse.json());
+  let sessionBootstrap: SessionBootstrapData;
+
+  try {
+    sessionBootstrap = readSessionBootstrapResponse(await sessionResponse.json());
+  } catch {
+    return {
+      routeState: {
+        kind: "not-authorized",
+        pathname: "/not-authorized",
+        access: "public",
+        attemptedPath: initialRouteState.pathname,
+        missingPermissions: initialRouteState.route.requiredPermissions,
+      },
+      sessionBootstrap: null,
+      workspaceOverview: null,
+      ticketList: null,
+      ticketListError: null,
+      ticketDetail: null,
+      ticketDetailError: null,
+      ticketCommunicationSubmission,
+      ticketFieldEditSubmission,
+    };
+  }
   const routeState = applyRouteAuthorizationSnapshot(
     initialRouteState,
     createWorkspaceAuthorizationSnapshot(sessionBootstrap, initialRouteState.workspaceSlug),
@@ -66,6 +99,8 @@ export async function loadAppRouteData(
       ticketListError: null,
       ticketDetail: null,
       ticketDetailError: null,
+      ticketCommunicationSubmission,
+      ticketFieldEditSubmission,
     };
   }
 
@@ -89,6 +124,8 @@ export async function loadAppRouteData(
         ticketListError: null,
         ticketDetail: null,
         ticketDetailError: null,
+        ticketCommunicationSubmission,
+        ticketFieldEditSubmission,
       };
     }
 
@@ -105,6 +142,8 @@ export async function loadAppRouteData(
         ticketListError: null,
         ticketDetail: null,
         ticketDetailError: null,
+        ticketCommunicationSubmission,
+        ticketFieldEditSubmission,
       };
     }
 
@@ -117,23 +156,41 @@ export async function loadAppRouteData(
         ticketListError: "Unable to load workspace overview.",
         ticketDetail: null,
         ticketDetailError: null,
+        ticketCommunicationSubmission,
+        ticketFieldEditSubmission,
       };
     }
 
-    return {
-      routeState,
-      sessionBootstrap,
-      workspaceOverview: readWorkspaceOverviewResponse(await overviewResponse.json()),
-      ticketList: null,
-      ticketListError: null,
-      ticketDetail: null,
-      ticketDetailError: null,
-    };
+    try {
+      return {
+        routeState,
+        sessionBootstrap,
+        workspaceOverview: readWorkspaceOverviewResponse(await overviewResponse.json()),
+        ticketList: null,
+        ticketListError: null,
+        ticketDetail: null,
+        ticketDetailError: null,
+        ticketCommunicationSubmission,
+        ticketFieldEditSubmission,
+      };
+    } catch {
+      return {
+        routeState,
+        sessionBootstrap,
+        workspaceOverview: null,
+        ticketList: null,
+        ticketListError: "Unable to load workspace overview.",
+        ticketDetail: null,
+        ticketDetailError: null,
+        ticketCommunicationSubmission,
+        ticketFieldEditSubmission,
+      };
+    }
   }
 
   if (routeState.routeId === "tickets" && routeState.ticketId === null) {
     const ticketListResponse = await options.fetchImpl(
-      `${options.apiBaseUrl}/api/v1/workspaces/${encodeURIComponent(routeState.workspaceSlug)}/tickets`,
+      `${options.apiBaseUrl}/api/v1/workspaces/${encodeURIComponent(routeState.workspaceSlug)}/tickets${requestUrl.search}`,
     );
 
     if (ticketListResponse.status === 401 || ticketListResponse.status === 403) {
@@ -151,6 +208,8 @@ export async function loadAppRouteData(
         ticketListError: null,
         ticketDetail: null,
         ticketDetailError: null,
+        ticketCommunicationSubmission,
+        ticketFieldEditSubmission,
       };
     }
 
@@ -167,6 +226,8 @@ export async function loadAppRouteData(
         ticketListError: null,
         ticketDetail: null,
         ticketDetailError: null,
+        ticketCommunicationSubmission,
+        ticketFieldEditSubmission,
       };
     }
 
@@ -179,18 +240,36 @@ export async function loadAppRouteData(
         ticketListError: "Unable to load tickets for this workspace.",
         ticketDetail: null,
         ticketDetailError: null,
+        ticketCommunicationSubmission,
+        ticketFieldEditSubmission,
       };
     }
 
-    return {
-      routeState,
-      sessionBootstrap,
-      workspaceOverview: null,
-      ticketList: readTicketListResponse(await ticketListResponse.json()),
-      ticketListError: null,
-      ticketDetail: null,
-      ticketDetailError: null,
-    };
+    try {
+      return {
+        routeState,
+        sessionBootstrap,
+        workspaceOverview: null,
+        ticketList: readTicketListResponse(await ticketListResponse.json()),
+        ticketListError: null,
+        ticketDetail: null,
+        ticketDetailError: null,
+        ticketCommunicationSubmission,
+        ticketFieldEditSubmission,
+      };
+    } catch {
+      return {
+        routeState,
+        sessionBootstrap,
+        workspaceOverview: null,
+        ticketList: null,
+        ticketListError: "Unable to load tickets for this workspace.",
+        ticketDetail: null,
+        ticketDetailError: null,
+        ticketCommunicationSubmission,
+        ticketFieldEditSubmission,
+      };
+    }
   }
 
   if (routeState.routeId === "tickets" && routeState.ticketId) {
@@ -213,6 +292,8 @@ export async function loadAppRouteData(
         ticketListError: null,
         ticketDetail: null,
         ticketDetailError: null,
+        ticketCommunicationSubmission,
+        ticketFieldEditSubmission,
       };
     }
 
@@ -229,6 +310,8 @@ export async function loadAppRouteData(
         ticketListError: null,
         ticketDetail: null,
         ticketDetailError: null,
+        ticketCommunicationSubmission,
+        ticketFieldEditSubmission,
       };
     }
 
@@ -241,18 +324,36 @@ export async function loadAppRouteData(
         ticketListError: null,
         ticketDetail: null,
         ticketDetailError: "Unable to load this ticket.",
+        ticketCommunicationSubmission,
+        ticketFieldEditSubmission,
       };
     }
 
-    return {
-      routeState,
-      sessionBootstrap,
-      workspaceOverview: null,
-      ticketList: null,
-      ticketListError: null,
-      ticketDetail: readTicketDetailResponse(await ticketDetailResponse.json()),
-      ticketDetailError: null,
-    };
+    try {
+      return {
+        routeState,
+        sessionBootstrap,
+        workspaceOverview: null,
+        ticketList: null,
+        ticketListError: null,
+        ticketDetail: readTicketDetailResponse(await ticketDetailResponse.json()),
+        ticketDetailError: null,
+        ticketCommunicationSubmission,
+        ticketFieldEditSubmission,
+      };
+    } catch {
+      return {
+        routeState,
+        sessionBootstrap,
+        workspaceOverview: null,
+        ticketList: null,
+        ticketListError: null,
+        ticketDetail: null,
+        ticketDetailError: "Unable to load this ticket.",
+        ticketCommunicationSubmission,
+        ticketFieldEditSubmission,
+      };
+    }
   }
 
   return {
@@ -263,5 +364,7 @@ export async function loadAppRouteData(
     ticketListError: null,
     ticketDetail: null,
     ticketDetailError: null,
+    ticketCommunicationSubmission,
+    ticketFieldEditSubmission,
   };
 }

@@ -36,6 +36,14 @@ export function normalizePathname(pathname: string): string {
 export function resolveAppRoute(pathname: string): AppRouteState {
   const normalizedPathname = normalizePathname(pathname);
 
+  if (normalizedPathname === "/") {
+    return {
+      kind: "marketing",
+      pathname: "/",
+      access: "public",
+    };
+  }
+
   if (normalizedPathname === "/not-authorized") {
       return {
         kind: "not-authorized",

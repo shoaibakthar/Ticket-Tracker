@@ -1,4 +1,5 @@
 import type { WorkspaceMembershipSummary } from "../../../../packages/auth/src/index";
+import { ticketPriorityValues, ticketStatusValues, type TicketListSort } from "../../../../packages/types/src/index";
 import type { D1Database } from "./d1";
 
 interface WorkspaceMembershipRow {
@@ -74,11 +75,34 @@ interface TicketCommentRow {
 
 interface TicketAttachmentRow {
   readonly attachmentId: string;
+  readonly linkedResourceType?: string;
+  readonly linkedResourceId?: string;
+  readonly r2ObjectKey?: string;
   readonly visibility: string;
   readonly filename: string;
   readonly contentType: string;
   readonly sizeBytes: number | string;
   readonly createdAt: string;
+  readonly uploadedByUserId: string;
+  readonly uploadedByDisplayName: string | null;
+  readonly uploadedByEmail: string;
+  readonly ticketVisibility?: string | null;
+}
+
+interface TicketAssignableMemberRow {
+  readonly memberId: string;
+  readonly userId: string;
+  readonly displayName: string | null;
+  readonly email: string;
+}
+
+interface TicketFieldChangeAuditRow {
+  readonly eventId: string;
+  readonly metadataJson: string;
+  readonly createdAt: string;
+  readonly actorUserId: string;
+  readonly actorDisplayName: string | null;
+  readonly actorEmail: string;
 }
 
 interface CreateTicketCommunicationInput {
@@ -100,6 +124,15 @@ interface CreateAuditEventInput {
   readonly action: string;
   readonly metadataJson: string;
   readonly createdAt: string;
+}
+
+export interface UpdateTicketFieldsInput {
+  readonly ticketId: string;
+  readonly status: string;
+  readonly priority: string;
+  readonly assigneeMemberId: string | null;
+  readonly dueDate: string | null;
+  readonly updatedAt: string;
 }
 
 export interface WorkspaceOverviewRecord {
@@ -138,6 +171,15 @@ export interface WorkspaceTicketListRecord {
   }[];
 }
 
+export interface WorkspaceTicketListQuery {
+  readonly includeInternalOnly: boolean;
+  readonly status?: string | null;
+  readonly priority?: string | null;
+  readonly assigneeMemberId?: string | null;
+  readonly query?: string | null;
+  readonly sort?: TicketListSort;
+}
+
 export interface WorkspaceTicketDetailRecord {
   readonly ticket: {
     readonly id: string;
@@ -161,7 +203,15 @@ export interface WorkspaceTicketDetailRecord {
     readonly internalNotes: readonly TicketCommunicationRecord[];
     readonly commentsActivity: readonly TicketCommentRecord[];
     readonly attachments: readonly TicketAttachmentRecord[];
+    readonly fieldChanges: readonly TicketFieldChangeRecord[];
   };
+}
+
+export interface WorkspaceAssignableMemberRecord {
+  readonly memberId: string;
+  readonly userId: string;
+  readonly displayName: string | null;
+  readonly email: string;
 }
 
 export interface TicketCommunicationRecord {
@@ -196,6 +246,35 @@ export interface TicketAttachmentRecord {
   readonly contentType: string;
   readonly sizeBytes: number;
   readonly createdAt: string;
+  readonly uploadedBy: {
+    readonly userId: string;
+    readonly displayName: string | null;
+    readonly email: string;
+  };
+}
+
+export interface WorkspaceAttachmentAccessRecord extends TicketAttachmentRecord {
+  readonly linkedResourceType: string;
+  readonly linkedResourceId: string;
+  readonly r2ObjectKey: string;
+  readonly ticketVisibility: string | null;
+}
+
+export interface TicketFieldChangeRecord {
+  readonly id: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly author: {
+    readonly userId: string;
+    readonly displayName: string | null;
+    readonly email: string;
+  };
+  readonly changes: readonly {
+    readonly field: "status" | "priority" | "assignee" | "dueDate";
+    readonly label: string;
+    readonly from: string | null;
+    readonly to: string | null;
+  }[];
 }
 
 export async function findWorkspaceMembershipForUser(
@@ -309,10 +388,38 @@ export async function findWorkspaceOverviewBySlug(
 export async function listWorkspaceTickets(
   database: D1Database,
   workspaceId: string,
-  options: {
-    readonly includeInternalOnly: boolean;
-  },
+  options: WorkspaceTicketListQuery,
 ): Promise<WorkspaceTicketListRecord> {
+  const conditions = [
+    "tickets.workspace_id = ?",
+    "tickets.archived_at IS NULL",
+    "(? = 1 OR tickets.visibility != 'internal_only')",
+  ];
+  const bindings: Array<string | number> = [workspaceId, options.includeInternalOnly ? 1 : 0];
+
+  if (options.status) {
+    conditions.push("LOWER(tickets.status) = LOWER(?)");
+    bindings.push(options.status);
+  }
+
+  if (options.priority) {
+    conditions.push("LOWER(tickets.priority) = LOWER(?)");
+    bindings.push(options.priority);
+  }
+
+  if (options.assigneeMemberId) {
+    conditions.push("tickets.assignee_member_id = ?");
+    bindings.push(options.assigneeMemberId);
+  }
+
+  if (options.query) {
+    const searchPattern = `%${escapeSqlLikePattern(options.query)}%`;
+    conditions.push(
+      "(tickets.ticket_number LIKE ? ESCAPE '\\' OR tickets.title LIKE ? ESCAPE '\\' OR COALESCE(tickets.description, '') LIKE ? ESCAPE '\\')",
+    );
+    bindings.push(searchPattern, searchPattern, searchPattern);
+  }
+
   const rows = await database
     .prepare(
       `
@@ -331,13 +438,11 @@ export async function listWorkspaceTickets(
         FROM tickets
         LEFT JOIN workspace_members AS assignee_members ON assignee_members.id = tickets.assignee_member_id
         LEFT JOIN users AS assignee_users ON assignee_users.id = assignee_members.user_id
-        WHERE tickets.workspace_id = ?
-          AND tickets.archived_at IS NULL
-          AND (? = 1 OR tickets.visibility != 'internal_only')
-        ORDER BY tickets.updated_at DESC, tickets.ticket_number DESC
+        WHERE ${conditions.join("\n          AND ")}
+        ${buildTicketListOrderByClause(options.sort ?? "updated_desc")}
       `,
     )
-    .bind(workspaceId, options.includeInternalOnly ? 1 : 0)
+    .bind(...bindings)
     .all<WorkspaceTicketRow>();
 
   return {
@@ -360,6 +465,30 @@ export async function listWorkspaceTickets(
           : null,
     })),
   };
+}
+
+function escapeSqlLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
+function buildTicketListOrderByClause(sort: TicketListSort): string {
+  switch (sort) {
+    case "updated_asc":
+      return "ORDER BY tickets.updated_at ASC, tickets.ticket_number ASC";
+    case "priority_desc":
+      return `ORDER BY
+        CASE LOWER(tickets.priority)
+          WHEN 'urgent' THEN 0
+          WHEN 'high' THEN 1
+          WHEN 'medium' THEN 2
+          WHEN 'low' THEN 3
+          ELSE 4
+        END ASC,
+        tickets.updated_at DESC,
+        tickets.ticket_number DESC`;
+    case "updated_desc":
+      return "ORDER BY tickets.updated_at DESC, tickets.ticket_number DESC";
+  }
 }
 
 export async function findWorkspaceTicketDetail(
@@ -404,13 +533,14 @@ export async function findWorkspaceTicketDetail(
     return null;
   }
 
-  const [customerVisibleUpdates, internalNotes, commentsActivity, attachments] = await Promise.all([
+  const [customerVisibleUpdates, internalNotes, commentsActivity, attachments, fieldChanges] = await Promise.all([
     listTicketCommunicationEntries(database, ticketId, "customer"),
     options.includeInternalNotes ? listTicketCommunicationEntries(database, ticketId, "internal") : Promise.resolve([]),
     listTicketComments(database, ticketId, { includeInternal: options.includeInternalNotes }),
     options.includeAttachments
       ? listTicketAttachments(database, workspaceId, ticketId, { includeInternal: options.includeInternalNotes })
       : Promise.resolve([]),
+    listTicketFieldChanges(database, ticketId),
   ]);
 
   return {
@@ -439,7 +569,105 @@ export async function findWorkspaceTicketDetail(
       internalNotes,
       commentsActivity,
       attachments,
+      fieldChanges,
     },
+  };
+}
+
+export async function listWorkspaceAssignableMembers(
+  database: D1Database,
+  workspaceId: string,
+): Promise<readonly WorkspaceAssignableMemberRecord[]> {
+  const rows = await database
+    .prepare(
+      `
+        SELECT
+          workspace_members.id AS memberId,
+          users.id AS userId,
+          users.full_name AS displayName,
+          users.email AS email
+        FROM workspace_members
+        INNER JOIN users ON users.id = workspace_members.user_id
+        WHERE workspace_members.workspace_id = ?
+          AND workspace_members.archived_at IS NULL
+          AND workspace_members.member_status = 'active'
+          AND users.archived_at IS NULL
+          AND users.status = 'active'
+        ORDER BY COALESCE(users.full_name, users.email) ASC
+      `,
+    )
+    .bind(workspaceId)
+    .all<TicketAssignableMemberRow>();
+
+  return rows.results.map((row) => ({
+    memberId: row.memberId,
+    userId: row.userId,
+    displayName: row.displayName,
+    email: row.email,
+  }));
+}
+
+export async function findWorkspaceAttachmentAccessRecord(
+  database: D1Database,
+  workspaceId: string,
+  attachmentId: string,
+): Promise<WorkspaceAttachmentAccessRecord | null> {
+  const row = await database
+    .prepare(
+      `
+        SELECT
+          attachments.id AS attachmentId,
+          attachments.linked_resource_type AS linkedResourceType,
+          attachments.linked_resource_id AS linkedResourceId,
+          attachments.r2_object_key AS r2ObjectKey,
+          attachments.visibility AS visibility,
+          attachments.original_filename AS filename,
+          attachments.content_type AS contentType,
+          attachments.size_bytes AS sizeBytes,
+          attachments.created_at AS createdAt,
+          users.id AS uploadedByUserId,
+          users.full_name AS uploadedByDisplayName,
+          users.email AS uploadedByEmail,
+          tickets.visibility AS ticketVisibility
+        FROM attachments
+        INNER JOIN users ON users.id = attachments.uploaded_by_user_id
+        LEFT JOIN tickets ON tickets.id = attachments.linked_resource_id
+          AND tickets.workspace_id = attachments.workspace_id
+          AND attachments.linked_resource_type = 'ticket'
+        WHERE attachments.workspace_id = ?
+          AND attachments.id = ?
+          AND attachments.archived_at IS NULL
+        LIMIT 1
+      `,
+    )
+    .bind(workspaceId, attachmentId)
+    .first<TicketAttachmentRow>();
+
+  if (
+    !row ||
+    typeof row.linkedResourceType !== "string" ||
+    typeof row.linkedResourceId !== "string" ||
+    typeof row.r2ObjectKey !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    id: row.attachmentId,
+    linkedResourceType: row.linkedResourceType,
+    linkedResourceId: row.linkedResourceId,
+    r2ObjectKey: row.r2ObjectKey,
+    visibility: row.visibility,
+    filename: row.filename,
+    contentType: row.contentType,
+    sizeBytes: Number(row.sizeBytes),
+    createdAt: row.createdAt,
+    uploadedBy: {
+      userId: row.uploadedByUserId,
+      displayName: row.uploadedByDisplayName,
+      email: row.uploadedByEmail,
+    },
+    ticketVisibility: row.ticketVisibility ?? null,
   };
 }
 
@@ -487,6 +715,34 @@ export async function updateTicketTimestamp(
       `,
     )
     .bind(updatedAt, ticketId)
+    .run();
+}
+
+export async function updateTicketFields(
+  database: D1Database,
+  input: UpdateTicketFieldsInput,
+): Promise<void> {
+  await database
+    .prepare(
+      `
+        UPDATE tickets
+        SET
+          status = ?,
+          priority = ?,
+          assignee_member_id = ?,
+          due_date = ?,
+          updated_at = ?
+        WHERE id = ?
+      `,
+    )
+    .bind(
+      input.status,
+      input.priority,
+      input.assigneeMemberId,
+      input.dueDate,
+      input.updatedAt,
+      input.ticketId,
+    )
     .run();
 }
 
@@ -625,8 +881,12 @@ async function listTicketAttachments(
           attachments.original_filename AS filename,
           attachments.content_type AS contentType,
           attachments.size_bytes AS sizeBytes,
-          attachments.created_at AS createdAt
+          attachments.created_at AS createdAt,
+          users.id AS uploadedByUserId,
+          users.full_name AS uploadedByDisplayName,
+          users.email AS uploadedByEmail
         FROM attachments
+        INNER JOIN users ON users.id = attachments.uploaded_by_user_id
         WHERE attachments.workspace_id = ?
           AND attachments.linked_resource_type = 'ticket'
           AND attachments.linked_resource_id = ?
@@ -639,11 +899,129 @@ async function listTicketAttachments(
     .all<TicketAttachmentRow>();
 
   return rows.results.map((row) => ({
-    id: row.attachmentId,
-    visibility: row.visibility,
-    filename: row.filename,
-    contentType: row.contentType,
-    sizeBytes: Number(row.sizeBytes),
-    createdAt: row.createdAt,
-  }));
+      id: row.attachmentId,
+      visibility: row.visibility,
+      filename: row.filename,
+      contentType: row.contentType,
+      sizeBytes: Number(row.sizeBytes),
+      createdAt: row.createdAt,
+      uploadedBy: {
+        userId: row.uploadedByUserId,
+        displayName: row.uploadedByDisplayName,
+        email: row.uploadedByEmail,
+      },
+    }));
+}
+
+async function listTicketFieldChanges(
+  database: D1Database,
+  ticketId: string,
+): Promise<readonly TicketFieldChangeRecord[]> {
+  const rows = await database
+    .prepare(
+      `
+        SELECT
+          audit_events.id AS eventId,
+          audit_events.metadata_json AS metadataJson,
+          audit_events.created_at AS createdAt,
+          users.id AS actorUserId,
+          users.full_name AS actorDisplayName,
+          users.email AS actorEmail
+        FROM audit_events
+        INNER JOIN users ON users.id = audit_events.actor_user_id
+        WHERE audit_events.resource_type = 'ticket'
+          AND audit_events.resource_id = ?
+          AND audit_events.action = 'ticket.updated'
+        ORDER BY audit_events.created_at DESC
+      `,
+    )
+    .bind(ticketId)
+    .all<TicketFieldChangeAuditRow>();
+
+  return rows.results.flatMap((row) => {
+    const metadata = readTicketFieldChangeMetadata(row.metadataJson);
+
+    if (metadata.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        id: row.eventId,
+        createdAt: row.createdAt,
+        updatedAt: row.createdAt,
+        author: {
+          userId: row.actorUserId,
+          displayName: row.actorDisplayName,
+          email: row.actorEmail,
+        },
+        changes: metadata,
+      },
+    ];
+  });
+}
+
+function readTicketFieldChangeMetadata(
+  metadataJson: string,
+): readonly TicketFieldChangeRecord["changes"][number][] {
+  const allowedFields = new Set(["status", "priority", "assignee", "dueDate"]);
+
+  try {
+    const parsed = JSON.parse(metadataJson) as {
+      changes?: Array<{
+        field?: unknown;
+        label?: unknown;
+        from?: unknown;
+        to?: unknown;
+      }>;
+    };
+
+    if (!Array.isArray(parsed.changes)) {
+      return [];
+    }
+
+    return parsed.changes.flatMap((change) => {
+      if (!allowedFields.has(String(change.field))) {
+        return [];
+      }
+
+      return [
+        {
+          field: change.field as TicketFieldChangeRecord["changes"][number]["field"],
+          label: typeof change.label === "string" && change.label.trim() ? change.label : readTicketFieldLabel(change.field),
+          from: typeof change.from === "string" ? change.from : change.from === null ? null : null,
+          to: typeof change.to === "string" ? change.to : change.to === null ? null : null,
+        },
+      ];
+    });
+  } catch {
+    return [];
+  }
+}
+
+function readTicketFieldLabel(field: unknown): TicketFieldChangeRecord["changes"][number]["label"] {
+  switch (field) {
+    case "status":
+      return "Status";
+    case "priority":
+      return "Priority";
+    case "assignee":
+      return "Assignee";
+    case "dueDate":
+      return "Due date";
+    default:
+      return "Updated field";
+  }
+}
+
+export function buildAllowedTicketStatusValues(currentValue: string): readonly string[] {
+  return currentValue && !ticketStatusValues.includes(currentValue as (typeof ticketStatusValues)[number])
+    ? [currentValue, ...ticketStatusValues]
+    : ticketStatusValues;
+}
+
+export function buildAllowedTicketPriorityValues(currentValue: string): readonly string[] {
+  return currentValue && !ticketPriorityValues.includes(currentValue as (typeof ticketPriorityValues)[number])
+    ? [currentValue, ...ticketPriorityValues]
+    : ticketPriorityValues;
 }

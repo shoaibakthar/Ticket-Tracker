@@ -12,6 +12,7 @@ export function readTicketListResponse(value: unknown): TicketListData {
       name: expectString(workspace.name),
     },
     items: expectArray(data.items).map((item) => readTicketListItem(item, expectString(workspace.slug))),
+    filters: readTicketListFilters(data.filters),
   };
 }
 
@@ -41,6 +42,26 @@ function readTicketAssignee(value: unknown): TicketListItem["assignee"] {
   };
 }
 
+function readTicketListFilters(value: unknown): TicketListData["filters"] {
+  const record = expectRecord(value);
+  const applied = expectRecord(record.applied);
+
+  return {
+    applied: {
+      status: readNullableString(applied.status),
+      priority: readNullableString(applied.priority),
+      assigneeMemberId: readNullableString(applied.assigneeMemberId),
+      q: readNullableString(applied.q),
+      sort: expectString(applied.sort) as TicketListData["filters"]["applied"]["sort"],
+    },
+    statusOptions: expectArray(record.statusOptions).map(expectString),
+    priorityOptions: expectArray(record.priorityOptions).map(expectString),
+    assigneeOptions: expectArray(record.assigneeOptions).map((value) => readTicketAssignee(value)!),
+    totalVisibleCount: expectNumber(record.totalVisibleCount),
+    filteredCount: expectNumber(record.filteredCount),
+  };
+}
+
 function expectRecord(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Expected record object.");
@@ -60,6 +81,14 @@ function expectArray(value: unknown): readonly unknown[] {
 function expectString(value: unknown): string {
   if (typeof value !== "string") {
     throw new Error("Expected string value.");
+  }
+
+  return value;
+}
+
+function expectNumber(value: unknown): number {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    throw new Error("Expected number value.");
   }
 
   return value;
